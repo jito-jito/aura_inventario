@@ -1,0 +1,25 @@
+diff --git a/node_modules/@ionic/core/package.json b/node_modules/@ionic/core/package.json
+index c32b1e5..447642f 100644
+--- a/node_modules/@ionic/core/package.json
++++ b/node_modules/@ionic/core/package.json
+@@ -117,5 +117,18 @@
+   "homepage": "https://ionicframework.com/",
+   "jest": {
+     "preset": "@stencil/core/testing"
++  },
++  "exports": {
++    ".": {
++      "types": "./dist/types/interface.d.ts",
++      "import": "./dist/index.js",
++      "require": "./dist/index.cjs.js"
++    },
++    "./components": "./components/index.js",
++    "./components/*": "./components/*",
++    "./css/*": "./css/*",
++    "./loader": "./loader/index.js",
++    "./hydrate": "./hydrate/index.js",
++    "./package.json": "./package.json"
+   }
+-}
++}
+\ No newline at end of file

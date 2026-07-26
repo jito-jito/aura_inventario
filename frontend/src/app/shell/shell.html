@@ -1,0 +1,23 @@
+<ion-split-pane content-id="main-content">
+  <ion-menu content-id="main-content">
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>Aura Inventario</ion-title>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content>
+      <ion-list>
+        @for (item of menuItems; track item.path) {
+          <ion-item [routerLink]="item.path" routerLinkActive="selected" [button]="true">
+            <ion-icon [name]="item.icon" slot="start"></ion-icon>
+            <ion-label>{{ item.label }}</ion-label>
+          </ion-item>
+        }
+      </ion-list>
+    </ion-content>
+  </ion-menu>
+
+  <div class="ion-page" id="main-content">
+    <ion-router-outlet></ion-router-outlet>
+  </div>
+</ion-split-pane>

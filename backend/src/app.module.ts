@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { ProductsModule } from './products/products.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { MercadolibreModule } from './mercadolibre/mercadolibre.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { InventoryModule } from './inventory/inventory.module';
     AuthModule,
     ProductsModule,
     InventoryModule,
+    MercadolibreModule,
   ],
   controllers: [AppController],
   providers: [AppService],

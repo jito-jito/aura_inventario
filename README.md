@@ -44,6 +44,20 @@ npm run start:dev
 
 - `GET /health` — estado de la API y de la conexión a la base de datos.
 - `POST /auth/login` — login del admin (`{ email, password }`), devuelve `{ accessToken }` (JWT).
+- `GET /products`, `POST /products`, `PATCH /products/:id` — catálogo interno.
+- `POST /inventory/movements`, `GET /inventory/movements` — movimientos de stock.
+- `GET /ml/auth/connect`, `GET /ml/auth/callback`, `GET /ml/auth/status`, `POST /ml/auth/disconnect` — conexión OAuth con Mercado Libre (ver sección siguiente).
+
+### Conectar una cuenta de Mercado Libre
+
+1. Crear una aplicación en <https://developers.mercadolibre.com.ar/devcenter> (o el devcenter del país correspondiente).
+2. Configurar en el panel de la app la **Redirect URI** exactamente igual a `MELI_REDIRECT_URI` (por defecto `http://localhost:3000/ml/auth/callback`).
+3. Copiar el `Client ID` y `Client Secret` al `.env` del backend (`MELI_CLIENT_ID`, `MELI_CLIENT_SECRET`).
+4. Ajustar `MELI_AUTH_URL` si el vendedor no es de Argentina (por ejemplo `https://auth.mercadolibre.com.mx/authorization` para México).
+5. Definir `ML_TOKEN_ENCRYPTION_KEY` con un secreto propio (se usa para cifrar los tokens guardados en la base de datos).
+6. Desde la página **Conexión Mercado Libre** del frontend, tocar "Conectar con Mercado Libre": redirige a Mercado Libre, y al autorizar vuelve al backend (`/ml/auth/callback`), que guarda los tokens y redirige de nuevo al frontend.
+
+El flujo usa Authorization Code + PKCE. Los tokens se guardan cifrados (AES-256-GCM) y se refrescan automáticamente cuando faltan menos de 5 minutos para que expiren.
 
 ## 3. Frontend (Ionic Angular PWA)
 

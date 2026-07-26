@@ -8,5 +8,75 @@
 </ion-header>
 
 <ion-content class="ion-padding">
-  <p>Vinculación de productos internos con publicaciones de Mercado Libre y estado de sync (fase 3 del plan).</p>
+  <h2>Vincular producto con una publicación</h2>
+  <form (ngSubmit)="link()" class="link-form">
+    <ion-item>
+      <ion-label>Producto</ion-label>
+      <ion-select placeholder="Seleccionar producto" [(ngModel)]="form.productId" name="productId">
+        @for (product of products(); track product.id) {
+          <ion-select-option [value]="product.id">
+            {{ product.name }} ({{ product.sku }})
+          </ion-select-option>
+        }
+      </ion-select>
+    </ion-item>
+    <ion-item>
+      <ion-label position="floating">Item ID de Mercado Libre</ion-label>
+      <ion-input name="mlItemId" placeholder="MLA123456789" [(ngModel)]="form.mlItemId" required></ion-input>
+    </ion-item>
+    <ion-item>
+      <ion-label position="floating">Variation ID (opcional)</ion-label>
+      <ion-input name="mlVariationId" [(ngModel)]="form.mlVariationId"></ion-input>
+    </ion-item>
+
+    @if (errorMessage()) {
+      <ion-text color="danger">
+        <p>{{ errorMessage() }}</p>
+      </ion-text>
+    }
+
+    <ion-button expand="block" type="submit" class="ion-margin-top" [disabled]="saving()">
+      {{ saving() ? 'Vinculando...' : 'Vincular' }}
+    </ion-button>
+  </form>
+
+  @if (unlinkedProducts().length > 0) {
+    <h2 class="ion-margin-top">Productos sin vincular</h2>
+    <div class="chips">
+      @for (product of unlinkedProducts(); track product.id) {
+        <ion-chip color="warning">{{ product.name }} ({{ product.sku }})</ion-chip>
+      }
+    </div>
+  }
+
+  <h2 class="ion-margin-top">Vínculos existentes</h2>
+  <ion-list>
+    @for (listing of listings(); track listing.id) {
+      <ion-item>
+        <ion-label>
+          <h3>{{ listing.product.name }} ({{ listing.product.sku }})</h3>
+          <p>{{ listing.title || listing.mlItemId }}</p>
+          <p>
+            Item: {{ listing.mlItemId }}
+            @if (listing.mlVariationId) {
+              · Variación: {{ listing.mlVariationId }}
+            }
+          </p>
+          @if (listing.lastSyncError) {
+            <p class="error-text">{{ listing.lastSyncError }}</p>
+          }
+        </ion-label>
+        <ion-badge slot="end" [color]="statusColor(listing.syncStatus)">
+          {{ statusLabel(listing.syncStatus) }}
+        </ion-badge>
+        <ion-button slot="end" fill="clear" color="danger" (click)="unlink(listing)">
+          Desvincular
+        </ion-button>
+      </ion-item>
+    } @empty {
+      <ion-item>
+        <ion-label>Todavía no hay publicaciones vinculadas.</ion-label>
+      </ion-item>
+    }
+  </ion-list>
 </ion-content>

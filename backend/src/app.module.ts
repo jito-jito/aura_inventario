@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { ProductsModule } from './products/products.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { MercadolibreModule } from './mercadolibre/mercadolibre.module';
+import { MlListingsModule } from './ml-listings/ml-listings.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { MercadolibreModule } from './mercadolibre/mercadolibre.module';
     ProductsModule,
     InventoryModule,
     MercadolibreModule,
+    MlListingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

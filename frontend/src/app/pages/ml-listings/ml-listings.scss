@@ -1,0 +1,12 @@
+.link-form {
+  max-width: 480px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.error-text {
+  color: var(--ion-color-danger);
+}

@@ -57,6 +57,12 @@ export class MlAuthService {
       .then((rows) => rows[0] ?? null);
   }
 
+  /** ID del vendedor conectado (o null si no hay conexión), sin tocar ni refrescar tokens. */
+  async getConnectedMlUserId(): Promise<string | null> {
+    const connection = await this.getConnection();
+    return connection?.mlUserId ?? null;
+  }
+
   private cleanupExpiredAuthorizations(): void {
     const now = Date.now();
     for (const [state, pending] of this.pendingAuthorizations.entries()) {

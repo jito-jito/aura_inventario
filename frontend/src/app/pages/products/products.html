@@ -5,8 +5,92 @@
     </ion-buttons>
     <ion-title>Productos</ion-title>
   </ion-toolbar>
+  <ion-toolbar>
+    <ion-searchbar
+      placeholder="Buscar por SKU o nombre"
+      [debounce]="300"
+      (ionInput)="onSearchChange($any($event.target).value)"
+    ></ion-searchbar>
+  </ion-toolbar>
 </ion-header>
 
 <ion-content class="ion-padding">
-  <p>Catálogo interno: alta, edición y búsqueda por SKU o nombre (fase 1 del plan).</p>
+  <ion-list>
+    @for (product of products(); track product.id) {
+      <ion-item [button]="true" (click)="openEditForm(product)">
+        <ion-label>
+          <h2>{{ product.name }}</h2>
+          <p>SKU: {{ product.sku }} · Costo: {{ product.cost }}</p>
+        </ion-label>
+        @if (isLowStock(product)) {
+          <ion-badge slot="end" color="danger">Stock: {{ product.stock }}</ion-badge>
+        } @else {
+          <ion-badge slot="end" color="medium">Stock: {{ product.stock }}</ion-badge>
+        }
+      </ion-item>
+    } @empty {
+      <ion-item>
+        <ion-label>No hay productos todavía.</ion-label>
+      </ion-item>
+    }
+  </ion-list>
+
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed">
+    <ion-fab-button (click)="openCreateForm()">
+      <ion-icon name="add-outline"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
 </ion-content>
+
+<ion-modal [isOpen]="showForm()" (didDismiss)="closeForm()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>{{ editingProduct() ? 'Editar producto' : 'Nuevo producto' }}</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="closeForm()">Cerrar</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="ion-padding">
+      <form (ngSubmit)="save()">
+        <ion-item>
+          <ion-label position="floating">SKU</ion-label>
+          <ion-input name="sku" [(ngModel)]="form.sku" required></ion-input>
+        </ion-item>
+        <ion-item>
+          <ion-label position="floating">Nombre</ion-label>
+          <ion-input name="name" [(ngModel)]="form.name" required></ion-input>
+        </ion-item>
+        <ion-item>
+          <ion-label position="floating">Descripción</ion-label>
+          <ion-input name="description" [(ngModel)]="form.description"></ion-input>
+        </ion-item>
+        <ion-item>
+          <ion-label position="floating">Costo</ion-label>
+          <ion-input type="number" name="cost" [(ngModel)]="form.cost" required></ion-input>
+        </ion-item>
+        @if (!editingProduct()) {
+          <ion-item>
+            <ion-label position="floating">Stock inicial</ion-label>
+            <ion-input type="number" name="stock" [(ngModel)]="form.stock"></ion-input>
+          </ion-item>
+        }
+        <ion-item>
+          <ion-label position="floating">Stock mínimo (alerta)</ion-label>
+          <ion-input type="number" name="minStock" [(ngModel)]="form.minStock"></ion-input>
+        </ion-item>
+
+        @if (errorMessage()) {
+          <ion-text color="danger">
+            <p>{{ errorMessage() }}</p>
+          </ion-text>
+        }
+
+        <ion-button expand="block" type="submit" class="ion-margin-top" [disabled]="saving()">
+          {{ saving() ? 'Guardando...' : 'Guardar' }}
+        </ion-button>
+      </form>
+    </ion-content>
+  </ng-template>
+</ion-modal>

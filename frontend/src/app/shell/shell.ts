@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import {
   IonSplitPane,
   IonMenu,
@@ -12,6 +12,7 @@ import {
   IonIcon,
   IonLabel,
   IonRouterOutlet,
+  IonButton,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
@@ -21,7 +22,9 @@ import {
   linkOutline,
   storefrontOutline,
   alertCircleOutline,
+  logOutOutline,
 } from 'ionicons/icons';
+import { AuthService } from '../core/auth.service';
 
 interface MenuItem {
   label: string;
@@ -45,6 +48,7 @@ interface MenuItem {
     IonIcon,
     IonLabel,
     IonRouterOutlet,
+    IonButton,
   ],
   templateUrl: './shell.html',
   styleUrl: './shell.scss',
@@ -59,7 +63,10 @@ export class Shell {
     { label: 'Logs / Errores', path: '/logs', icon: 'alert-circle-outline' },
   ];
 
-  constructor() {
+  constructor(
+    private readonly authService: AuthService,
+    private readonly router: Router,
+  ) {
     addIcons({
       gridOutline,
       cubeOutline,
@@ -67,6 +74,12 @@ export class Shell {
       linkOutline,
       storefrontOutline,
       alertCircleOutline,
+      logOutOutline,
     });
+  }
+
+  logout(): void {
+    this.authService.logout();
+    this.router.navigateByUrl('/login');
   }
 }

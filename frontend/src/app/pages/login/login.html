@@ -15,6 +15,14 @@
       <ion-input type="password" name="password" [(ngModel)]="password" required></ion-input>
     </ion-item>
 
-    <ion-button expand="block" type="submit" class="ion-margin-top">Ingresar</ion-button>
+    @if (errorMessage()) {
+      <ion-text color="danger">
+        <p>{{ errorMessage() }}</p>
+      </ion-text>
+    }
+
+    <ion-button expand="block" type="submit" class="ion-margin-top" [disabled]="loading()">
+      {{ loading() ? 'Ingresando...' : 'Ingresar' }}
+    </ion-button>
   </form>
 </ion-content>

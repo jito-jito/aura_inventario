@@ -14,6 +14,7 @@ MVP de inventario para Mercado Libre. Ver [`PLAN.md`](./PLAN.md) para el alcance
 
 - Node.js 20+ (probado con Node 22)
 - Docker y Docker Compose (para Postgres y Redis)
+- `pg_dump` disponible en el PATH (paquete `postgresql-client`), usado para los respaldos automáticos
 
 ## 1. Levantar infraestructura (Postgres + Redis)
 
@@ -49,6 +50,8 @@ npm run start:dev
 - `GET /ml/auth/connect`, `GET /ml/auth/callback`, `GET /ml/auth/status`, `POST /ml/auth/disconnect` — conexión OAuth con Mercado Libre (ver sección siguiente).
 - `POST /ml/listings`, `GET /ml/listings`, `GET /ml/listings/unlinked-products`, `DELETE /ml/listings/:id` — vincular productos internos con publicaciones de Mercado Libre.
 - `POST /ml/webhooks/orders` (público) — callback de notificaciones de Mercado Libre. `GET /ml/orders/processed` (protegido) — historial de ítems de órdenes procesados.
+- `GET /monitoring/errors` — errores agregados de conexión ML, publicaciones vinculadas y procesamiento de ventas.
+- `POST /backups`, `GET /backups`, `GET /backups/:filename/download` — respaldos de la base de datos (ver sección más abajo).
 
 ### Conectar una cuenta de Mercado Libre
 
@@ -70,6 +73,22 @@ El sistema es de **solo lectura** hacia Mercado Libre: detecta ventas y descuent
 3. Un worker toma el job, consulta el detalle de la orden (`GET /orders/:id` con el access token vigente) y, si el estado es `paid`, descuenta stock por cada ítem vinculado en `ml_listings` (registrando el movimiento de salida con referencia a la orden). Si el ítem no está vinculado a ningún producto, se ignora. Si la orden ya fue procesada antes, se ignora (idempotencia por orden + ítem).
 4. Si falla el descuento (por ejemplo, stock insuficiente), queda registrado con el error tanto en `ml_processed_order_items` como en el vínculo correspondiente (`GET /ml/listings` muestra el estado y el último error).
 
+### Respaldo y recuperación de datos
+
+- `POST /backups` (protegido) — genera un respaldo manual ahora mismo (`pg_dump` comprimido con gzip).
+- `GET /backups` (protegido) — lista los respaldos disponibles.
+- `GET /backups/:filename/download` (protegido) — descarga un respaldo.
+
+Además corre automáticamente todas las noches a las 03:00 (desactivable con `BACKUP_CRON_ENABLED=false`). Los archivos se guardan en `BACKUP_DIR` (por defecto `backend/backups/`, ignorado por git) y se conservan los últimos `BACKUP_RETENTION_COUNT` (por defecto 14), borrando los más viejos automáticamente.
+
+**Importante:** esto guarda los respaldos en el disco local del servidor. Para protegerse de verdad ante una falla de disco, hay que sincronizar `BACKUP_DIR` a un disco externo o a un bucket (S3, etc.) — eso no está automatizado en este MVP, hay que agregarlo (por ejemplo con un `rclone`/`aws s3 sync` programado aparte).
+
+Para restaurar un respaldo (**operación destructiva**, no tiene botón en la UI a propósito):
+
+```bash
+gunzip -c aura-inventario-XXXXXXXXTXXXXXX.sql.gz | psql -h localhost -U aura -d aura_inventario
+```
+
 ## 3. Frontend (Ionic Angular PWA)
 
 ```bash
@@ -78,7 +97,7 @@ npm install   # aplica automáticamente un patch a @ionic/core (ver nota abajo)
 npm start
 ```
 
-Abre `http://localhost:4200`. Rutas disponibles: `/login`, `/dashboard`, `/products`, `/inventory`, `/ml-connection`, `/ml-listings`, `/logs`. El contenido de cada página es un placeholder que se completa en las fases siguientes del plan.
+Abre `http://localhost:4200`. Rutas disponibles: `/login`, `/dashboard`, `/products`, `/inventory`, `/ml-connection`, `/ml-listings`, `/logs`, `/backups`.
 
 ### Nota sobre `patch-package`
 

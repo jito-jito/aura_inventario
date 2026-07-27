@@ -1,0 +1,49 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+    </ion-buttons>
+    <ion-title>Respaldos</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <p>
+    Respaldo automático todas las noches. También podés generar uno manual antes de un
+    cambio importante.
+  </p>
+
+  @if (errorMessage()) {
+    <ion-text color="danger">
+      <p>{{ errorMessage() }}</p>
+    </ion-text>
+  }
+
+  <ion-button expand="block" (click)="createBackup()" [disabled]="creating()">
+    {{ creating() ? 'Generando respaldo...' : 'Generar respaldo ahora' }}
+  </ion-button>
+
+  <h2 class="ion-margin-top">Respaldos disponibles</h2>
+
+  @if (loading()) {
+    <ion-spinner name="dots"></ion-spinner>
+  } @else {
+    <ion-list>
+      @for (backup of backups(); track backup.filename) {
+        <ion-item>
+          <ion-label>
+            <h3>{{ backup.filename }}</h3>
+            <ion-note>{{ backup.createdAt | date: 'medium' }} · {{ formatSize(backup.sizeBytes) }}</ion-note>
+          </ion-label>
+          <ion-button slot="end" fill="outline" (click)="download(backup.filename)">
+            Descargar
+          </ion-button>
+        </ion-item>
+      } @empty {
+        <ion-item>
+          <ion-label>Todavía no hay respaldos generados.</ion-label>
+        </ion-item>
+      }
+    </ion-list>
+  }
+</ion-content>

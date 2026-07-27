@@ -37,6 +37,10 @@ export const routes: Routes = [
         path: 'logs',
         loadComponent: () => import('./pages/logs/logs').then((m) => m.Logs),
       },
+      {
+        path: 'backups',
+        loadComponent: () => import('./pages/backups/backups').then((m) => m.Backups),
+      },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
     ],
   },

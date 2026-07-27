@@ -2,6 +2,9 @@
 /dist
 /node_modules
 
+# respaldos de base de datos generados localmente
+/backups
+
 # logs
 /logs
 *.log

@@ -23,6 +23,7 @@ import {
   storefrontOutline,
   alertCircleOutline,
   logOutOutline,
+  cloudUploadOutline,
 } from 'ionicons/icons';
 import { AuthService } from '../core/auth.service';
 
@@ -61,6 +62,7 @@ export class Shell {
     { label: 'Conexión Mercado Libre', path: '/ml-connection', icon: 'link-outline' },
     { label: 'Publicaciones vinculadas', path: '/ml-listings', icon: 'storefront-outline' },
     { label: 'Logs / Errores', path: '/logs', icon: 'alert-circle-outline' },
+    { label: 'Respaldos', path: '/backups', icon: 'cloud-upload-outline' },
   ];
 
   constructor(
@@ -75,6 +77,7 @@ export class Shell {
       storefrontOutline,
       alertCircleOutline,
       logOutOutline,
+      cloudUploadOutline,
     });
   }
 

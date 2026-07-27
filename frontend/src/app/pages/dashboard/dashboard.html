@@ -8,5 +8,74 @@
 </ion-header>
 
 <ion-content class="ion-padding">
-  <p>Stock bajo, ventas recientes y errores de integración (fase 6 del plan).</p>
+  @if (loading()) {
+    <ion-spinner name="dots"></ion-spinner>
+  } @else {
+    <ion-grid>
+      <ion-row>
+        <ion-col size="12" size-md="4">
+          <h2>Stock bajo</h2>
+          <ion-list>
+            @for (product of lowStockProducts(); track product.id) {
+              <ion-item>
+                <ion-label>
+                  <h3>{{ product.name }}</h3>
+                  <p>SKU: {{ product.sku }}</p>
+                </ion-label>
+                <ion-badge slot="end" color="danger">
+                  {{ product.stock }} / {{ product.minStock }}
+                </ion-badge>
+              </ion-item>
+            } @empty {
+              <ion-item>
+                <ion-label>Sin alertas de stock bajo.</ion-label>
+              </ion-item>
+            }
+          </ion-list>
+        </ion-col>
+
+        <ion-col size="12" size-md="4">
+          <h2>Ventas recientes</h2>
+          <ion-list>
+            @for (sale of recentSales(); track sale.id) {
+              <ion-item>
+                <ion-label>
+                  <h3>{{ sale.product.name }} ({{ sale.product.sku }})</h3>
+                  <p>Orden ML {{ sale.mlOrderId }} · Cantidad: {{ sale.quantity }}</p>
+                  <ion-note>{{ sale.processedAt | date: 'short' }}</ion-note>
+                </ion-label>
+                <ion-badge slot="end" [color]="sale.status === 'processed' ? 'success' : 'danger'">
+                  {{ sale.status === 'processed' ? 'Procesada' : 'Error' }}
+                </ion-badge>
+              </ion-item>
+            } @empty {
+              <ion-item>
+                <ion-label>Todavía no se procesaron ventas.</ion-label>
+              </ion-item>
+            }
+          </ion-list>
+        </ion-col>
+
+        <ion-col size="12" size-md="4">
+          <h2>Errores de integración</h2>
+          <ion-list>
+            @for (error of errors(); track error.occurredAt + error.context) {
+              <ion-item>
+                <ion-label>
+                  <h3>{{ errorTypeLabel(error.type) }}</h3>
+                  <p>{{ error.context }}</p>
+                  <p class="error-text">{{ error.message }}</p>
+                  <ion-note>{{ error.occurredAt | date: 'short' }}</ion-note>
+                </ion-label>
+              </ion-item>
+            } @empty {
+              <ion-item>
+                <ion-label>Sin errores registrados.</ion-label>
+              </ion-item>
+            }
+          </ion-list>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
+  }
 </ion-content>

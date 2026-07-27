@@ -10,6 +10,7 @@ import { InventoryModule } from './inventory/inventory.module';
 import { MercadolibreModule } from './mercadolibre/mercadolibre.module';
 import { MlListingsModule } from './ml-listings/ml-listings.module';
 import { MlOrdersModule } from './ml-orders/ml-orders.module';
+import { MonitoringModule } from './monitoring/monitoring.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { MlOrdersModule } from './ml-orders/ml-orders.module';
     MercadolibreModule,
     MlListingsModule,
     MlOrdersModule,
+    MonitoringModule,
   ],
   controllers: [AppController],
   providers: [AppService],

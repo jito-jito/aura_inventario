@@ -135,6 +135,7 @@ export class MlOrdersService {
 
   findRecentlyProcessed(limit = 50): Promise<MlProcessedOrderItem[]> {
     return this.processedItemsRepository.find({
+      relations: { product: true },
       order: { processedAt: 'DESC' },
       take: limit,
     });

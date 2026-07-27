@@ -1,4 +1,13 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { Product } from '../../products/entities/product.entity';
 
 export enum MlProcessedOrderItemStatus {
   PROCESSED = 'processed',
@@ -23,6 +32,10 @@ export class MlProcessedOrderItem {
 
   @Column({ type: 'varchar', nullable: true })
   mlVariationId!: string | null;
+
+  @ManyToOne(() => Product, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'productId' })
+  product!: Product;
 
   @Column()
   productId!: string;

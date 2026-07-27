@@ -63,6 +63,15 @@ export class MlAuthService {
     return connection?.mlUserId ?? null;
   }
 
+  /** Access token vigente para llamar a la API de Mercado Libre. Refresca si hace falta. */
+  async getValidAccessToken(): Promise<string> {
+    const connection = await this.getConnection();
+    if (!connection) {
+      throw new BadRequestException('No hay una cuenta de Mercado Libre conectada');
+    }
+    return this.ensureValidAccessToken(connection);
+  }
+
   private cleanupExpiredAuthorizations(): void {
     const now = Date.now();
     for (const [state, pending] of this.pendingAuthorizations.entries()) {

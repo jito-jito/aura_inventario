@@ -47,6 +47,8 @@ npm run start:dev
 - `GET /products`, `POST /products`, `PATCH /products/:id` — catálogo interno.
 - `POST /inventory/movements`, `GET /inventory/movements` — movimientos de stock.
 - `GET /ml/auth/connect`, `GET /ml/auth/callback`, `GET /ml/auth/status`, `POST /ml/auth/disconnect` — conexión OAuth con Mercado Libre (ver sección siguiente).
+- `POST /ml/listings`, `GET /ml/listings`, `GET /ml/listings/unlinked-products`, `DELETE /ml/listings/:id` — vincular productos internos con publicaciones de Mercado Libre.
+- `POST /ml/webhooks/orders` (público) — callback de notificaciones de Mercado Libre. `GET /ml/orders/processed` (protegido) — historial de ítems de órdenes procesados.
 
 ### Conectar una cuenta de Mercado Libre
 
@@ -58,6 +60,15 @@ npm run start:dev
 6. Desde la página **Conexión Mercado Libre** del frontend, tocar "Conectar con Mercado Libre": redirige a Mercado Libre, y al autorizar vuelve al backend (`/ml/auth/callback`), que guarda los tokens y redirige de nuevo al frontend.
 
 El flujo usa Authorization Code + PKCE. Los tokens se guardan cifrados (AES-256-GCM) y se refrescan automáticamente cuando faltan menos de 5 minutos para que expiren.
+
+### Detección de ventas (webhooks de Mercado Libre)
+
+El sistema es de **solo lectura** hacia Mercado Libre: detecta ventas y descuenta stock interno, pero nunca actualiza `available_quantity` ni ningún dato de la publicación en Mercado Libre.
+
+1. En el panel de la app (mismo devcenter de la sección anterior), configurar la **Notification callback URL** apuntando a `https://TU_DOMINIO_PUBLICO/ml/webhooks/orders` y suscribirse al topic `orders_v2`. Como Mercado Libre necesita llamar a esta URL, en desarrollo local hace falta exponerla con una herramienta como `ngrok` (`ngrok http 3000` y usar esa URL pública).
+2. Al llegar una notificación, el backend la encola (BullMQ + Redis) y responde `200` de inmediato para no bloquear a Mercado Libre.
+3. Un worker toma el job, consulta el detalle de la orden (`GET /orders/:id` con el access token vigente) y, si el estado es `paid`, descuenta stock por cada ítem vinculado en `ml_listings` (registrando el movimiento de salida con referencia a la orden). Si el ítem no está vinculado a ningún producto, se ignora. Si la orden ya fue procesada antes, se ignora (idempotencia por orden + ítem).
+4. Si falla el descuento (por ejemplo, stock insuficiente), queda registrado con el error tanto en `ml_processed_order_items` como en el vínculo correspondiente (`GET /ml/listings` muestra el estado y el último error).
 
 ## 3. Frontend (Ionic Angular PWA)
 

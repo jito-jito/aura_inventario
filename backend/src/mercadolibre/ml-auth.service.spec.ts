@@ -208,6 +208,47 @@ describe('MlAuthService', () => {
     });
   });
 
+  describe('getValidAccessToken', () => {
+    it('rechaza si no hay conexión guardada', async () => {
+      repository.find.mockResolvedValue([]);
+      await expect(service.getValidAccessToken()).rejects.toThrow(BadRequestException);
+    });
+
+    it('devuelve el access_token vigente sin refrescar', async () => {
+      const connection: Partial<MlConnection> = {
+        accessToken: 'valid-token',
+        refreshToken: 'refresh-token',
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      };
+      repository.find.mockResolvedValue([connection]);
+
+      await expect(service.getValidAccessToken()).resolves.toBe('valid-token');
+      expect(httpService.post).not.toHaveBeenCalled();
+    });
+
+    it('refresca el token si está por vencer', async () => {
+      const connection: Partial<MlConnection> = {
+        accessToken: 'expiring-token',
+        refreshToken: 'refresh-token',
+        expiresAt: new Date(Date.now() + 60 * 1000),
+      };
+      repository.find.mockResolvedValue([connection]);
+      httpService.post.mockReturnValueOnce(
+        of({
+          data: {
+            access_token: 'refreshed-token',
+            token_type: 'bearer',
+            expires_in: 21600,
+            user_id: 123456,
+            refresh_token: 'new-refresh-token',
+          },
+        }),
+      );
+
+      await expect(service.getValidAccessToken()).resolves.toBe('refreshed-token');
+    });
+  });
+
   describe('disconnect', () => {
     it('elimina la conexión existente', async () => {
       const connection: Partial<MlConnection> = { mlUserId: '123456' };

@@ -4,9 +4,31 @@
       <ion-menu-button></ion-menu-button>
     </ion-buttons>
     <ion-title>Logs / Errores</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="load()">Actualizar</ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
 <ion-content class="ion-padding">
-  <p>Errores de sincronización y fallas de integración con Mercado Libre (fase 6 del plan).</p>
+  @if (loading()) {
+    <ion-spinner name="dots"></ion-spinner>
+  } @else {
+    <ion-list>
+      @for (error of errors(); track error.occurredAt + error.context) {
+        <ion-item>
+          <ion-label>
+            <h2>{{ errorTypeLabel(error.type) }}</h2>
+            <p>{{ error.context }}</p>
+            <p class="error-text">{{ error.message }}</p>
+            <ion-note>{{ error.occurredAt | date: 'medium' }}</ion-note>
+          </ion-label>
+        </ion-item>
+      } @empty {
+        <ion-item>
+          <ion-label>Sin errores registrados. Todo funcionando correctamente.</ion-label>
+        </ion-item>
+      }
+    </ion-list>
+  }
 </ion-content>

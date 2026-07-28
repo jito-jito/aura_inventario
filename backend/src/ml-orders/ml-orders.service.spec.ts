@@ -11,14 +11,14 @@ describe('MlOrdersService', () => {
   let processedItemsRepository: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock; find: jest.Mock };
   let listingsRepository: { findOne: jest.Mock; save: jest.Mock };
 
-  const listing = {
+  const singleComponentListing = {
     id: 'listing-1',
-    productId: 'product-1',
     mlItemId: 'MLA1',
     mlVariationId: null,
     syncStatus: MlListingSyncStatus.PENDING,
     lastSyncedAt: null,
     lastSyncError: null,
+    components: [{ productId: 'product-1', quantityPerUnit: 1 }],
   };
 
   beforeEach(() => {
@@ -32,7 +32,7 @@ describe('MlOrdersService', () => {
       find: jest.fn().mockResolvedValue([]),
     };
     listingsRepository = {
-      findOne: jest.fn().mockResolvedValue({ ...listing }),
+      findOne: jest.fn().mockResolvedValue({ ...singleComponentListing }),
       save: jest.fn((data) => Promise.resolve(data)),
     };
 
@@ -68,7 +68,18 @@ describe('MlOrdersService', () => {
     expect(processedItemsRepository.save).not.toHaveBeenCalled();
   });
 
-  it('no vuelve a procesar un item ya registrado (idempotencia)', async () => {
+  it('ignora una publicación vinculada sin ningún componente', async () => {
+    listingsRepository.findOne.mockResolvedValue({ ...singleComponentListing, components: [] });
+    httpService.get.mockReturnValueOnce(
+      of({ data: { id: 223, status: 'paid', order_items: [{ item: { id: 'MLA1', variation_id: null }, quantity: 1 }] } }),
+    );
+
+    await service.processOrder('223');
+
+    expect(inventoryService.registerMovement).not.toHaveBeenCalled();
+  });
+
+  it('no vuelve a procesar un componente ya registrado (idempotencia)', async () => {
     processedItemsRepository.findOne.mockResolvedValue({ id: 'existing-record' });
     httpService.get.mockReturnValueOnce(
       of({ data: { id: 333, status: 'paid', order_items: [{ item: { id: 'MLA1', variation_id: null }, quantity: 2 }] } }),
@@ -117,14 +128,23 @@ describe('MlOrdersService', () => {
       }),
     );
     expect(listingsRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({ syncStatus: MlListingSyncStatus.ERROR, lastSyncError: 'Stock insuficiente' }),
+      expect.objectContaining({ syncStatus: MlListingSyncStatus.ERROR }),
     );
   });
 
   it('procesa cada item de la orden de forma independiente', async () => {
     listingsRepository.findOne
-      .mockResolvedValueOnce({ ...listing, id: 'listing-1', productId: 'product-1' })
-      .mockResolvedValueOnce({ ...listing, id: 'listing-2', productId: 'product-2', mlItemId: 'MLA2' });
+      .mockResolvedValueOnce({
+        ...singleComponentListing,
+        id: 'listing-1',
+        components: [{ productId: 'product-1', quantityPerUnit: 1 }],
+      })
+      .mockResolvedValueOnce({
+        ...singleComponentListing,
+        id: 'listing-2',
+        mlItemId: 'MLA2',
+        components: [{ productId: 'product-2', quantityPerUnit: 1 }],
+      });
     httpService.get.mockReturnValueOnce(
       of({
         data: {
@@ -163,5 +183,97 @@ describe('MlOrdersService', () => {
       'https://api.mercadolibre.com/orders/777',
       expect.objectContaining({ headers: { Authorization: 'Bearer token-123' } }),
     );
+  });
+
+  describe('publicaciones con varios componentes (kit)', () => {
+    const kitListing = {
+      id: 'listing-kit',
+      mlItemId: 'MLA-KIT',
+      mlVariationId: null,
+      syncStatus: MlListingSyncStatus.PENDING,
+      lastSyncedAt: null,
+      lastSyncError: null,
+      components: [
+        { productId: 'lienzo-1', quantityPerUnit: 1 },
+        { productId: 'marco-1', quantityPerUnit: 4 },
+      ],
+    };
+
+    it('descuenta stock de todos los componentes, multiplicando por la cantidad vendida', async () => {
+      listingsRepository.findOne.mockResolvedValue({ ...kitListing });
+      httpService.get.mockReturnValueOnce(
+        of({
+          data: {
+            id: 888,
+            status: 'paid',
+            order_items: [{ item: { id: 'MLA-KIT', variation_id: null }, quantity: 2 }],
+          },
+        }),
+      );
+
+      await service.processOrder('888');
+
+      expect(inventoryService.registerMovement).toHaveBeenCalledTimes(2);
+      expect(inventoryService.registerMovement).toHaveBeenCalledWith(
+        expect.objectContaining({ productId: 'lienzo-1', quantity: 2 }), // 2 unidades * 1 por unidad
+      );
+      expect(inventoryService.registerMovement).toHaveBeenCalledWith(
+        expect.objectContaining({ productId: 'marco-1', quantity: 8 }), // 2 unidades * 4 por unidad
+      );
+    });
+
+    it('si un componente falla, el otro igual se descuenta y la publicación queda en error', async () => {
+      listingsRepository.findOne.mockResolvedValue({ ...kitListing });
+      inventoryService.registerMovement.mockImplementation(({ productId }: { productId: string }) => {
+        if (productId === 'marco-1') {
+          return Promise.reject(new Error('Stock insuficiente de marcos'));
+        }
+        return Promise.resolve({});
+      });
+      httpService.get.mockReturnValueOnce(
+        of({
+          data: {
+            id: 999,
+            status: 'paid',
+            order_items: [{ item: { id: 'MLA-KIT', variation_id: null }, quantity: 1 }],
+          },
+        }),
+      );
+
+      await service.processOrder('999');
+
+      expect(processedItemsRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ productId: 'lienzo-1', status: MlProcessedOrderItemStatus.PROCESSED }),
+      );
+      expect(processedItemsRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ productId: 'marco-1', status: MlProcessedOrderItemStatus.ERROR }),
+      );
+      expect(listingsRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ syncStatus: MlListingSyncStatus.ERROR }),
+      );
+    });
+
+    it('no reprocesa un componente ya registrado pero sí uno nuevo (idempotencia parcial)', async () => {
+      processedItemsRepository.findOne.mockImplementation(({ where }: any) =>
+        Promise.resolve(where.productId === 'lienzo-1' ? { id: 'already-done' } : null),
+      );
+      listingsRepository.findOne.mockResolvedValue({ ...kitListing });
+      httpService.get.mockReturnValueOnce(
+        of({
+          data: {
+            id: 1000,
+            status: 'paid',
+            order_items: [{ item: { id: 'MLA-KIT', variation_id: null }, quantity: 1 }],
+          },
+        }),
+      );
+
+      await service.processOrder('1000');
+
+      expect(inventoryService.registerMovement).toHaveBeenCalledTimes(1);
+      expect(inventoryService.registerMovement).toHaveBeenCalledWith(
+        expect.objectContaining({ productId: 'marco-1' }),
+      );
+    });
   });
 });

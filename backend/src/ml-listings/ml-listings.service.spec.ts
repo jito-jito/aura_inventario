@@ -14,12 +14,14 @@ describe('MlListingsService', () => {
     find: jest.Mock;
     remove: jest.Mock;
   };
+  let componentsRepository: { create: jest.Mock };
   let productsRepository: {
-    findOne: jest.Mock;
+    findBy: jest.Mock;
     createQueryBuilder: jest.Mock;
   };
 
-  const product = { id: 'product-1', sku: 'SKU-1', name: 'Producto 1' };
+  const productA = { id: 'product-1', sku: 'SKU-1', name: 'Lienzo' };
+  const productB = { id: 'product-2', sku: 'SKU-2', name: 'Marco' };
 
   beforeEach(() => {
     httpService = { get: jest.fn() };
@@ -31,8 +33,11 @@ describe('MlListingsService', () => {
       find: jest.fn().mockResolvedValue([]),
       remove: jest.fn().mockResolvedValue(undefined),
     };
+    componentsRepository = {
+      create: jest.fn((data) => data),
+    };
     productsRepository = {
-      findOne: jest.fn().mockResolvedValue(product),
+      findBy: jest.fn().mockResolvedValue([productA]),
       createQueryBuilder: jest.fn(),
     };
 
@@ -40,16 +45,26 @@ describe('MlListingsService', () => {
       httpService as any,
       mlAuthService as any,
       listingsRepository as any,
+      componentsRepository as any,
       productsRepository as any,
     );
   });
 
   describe('create', () => {
-    it('rechaza si el producto no existe', async () => {
-      productsRepository.findOne.mockResolvedValue(null);
+    it('rechaza si algún producto componente no existe', async () => {
+      productsRepository.findBy.mockResolvedValue([]);
       await expect(
-        service.create({ productId: 'missing', mlItemId: 'MLA1' }),
+        service.create({ mlItemId: 'MLA1', components: [{ productId: 'missing' }] }),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('rechaza componentes con el mismo producto repetido', async () => {
+      await expect(
+        service.create({
+          mlItemId: 'MLA1',
+          components: [{ productId: 'product-1' }, { productId: 'product-1' }],
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('rechaza si la publicación no existe en Mercado Libre (404)', async () => {
@@ -58,7 +73,7 @@ describe('MlListingsService', () => {
       httpService.get.mockReturnValueOnce(throwError(() => axiosError));
 
       await expect(
-        service.create({ productId: 'product-1', mlItemId: 'MLA-NOPE' }),
+        service.create({ mlItemId: 'MLA-NOPE', components: [{ productId: 'product-1' }] }),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -66,7 +81,7 @@ describe('MlListingsService', () => {
       httpService.get.mockReturnValueOnce(throwError(() => new Error('network down')));
 
       await expect(
-        service.create({ productId: 'product-1', mlItemId: 'MLA1' }),
+        service.create({ mlItemId: 'MLA1', components: [{ productId: 'product-1' }] }),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -77,7 +92,7 @@ describe('MlListingsService', () => {
       );
 
       await expect(
-        service.create({ productId: 'product-1', mlItemId: 'MLA1' }),
+        service.create({ mlItemId: 'MLA1', components: [{ productId: 'product-1' }] }),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -89,53 +104,63 @@ describe('MlListingsService', () => {
       );
 
       await expect(
-        service.create({ productId: 'product-1', mlItemId: 'MLA1', mlVariationId: '999' }),
+        service.create({
+          mlItemId: 'MLA1',
+          mlVariationId: '999',
+          components: [{ productId: 'product-1' }],
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('rechaza si la publicación ya está vinculada a otro producto', async () => {
+    it('rechaza si la publicación ya está vinculada', async () => {
       httpService.get.mockReturnValueOnce(
         of({ data: { id: 'MLA1', title: 'Item', seller_id: 111 } }),
       );
-      listingsRepository.findOne.mockResolvedValue({
-        id: 'listing-existing',
-        product: { name: 'Otro producto', sku: 'OTRO-1' },
-      });
+      listingsRepository.findOne.mockResolvedValue({ id: 'listing-existing' });
 
       await expect(
-        service.create({ productId: 'product-1', mlItemId: 'MLA1' }),
+        service.create({ mlItemId: 'MLA1', components: [{ productId: 'product-1' }] }),
       ).rejects.toThrow(ConflictException);
     });
 
-    it('crea el vínculo cuando todo es válido', async () => {
+    it('crea el vínculo con varios componentes (kit)', async () => {
+      productsRepository.findBy.mockResolvedValue([productA, productB]);
       mlAuthService.getConnectedMlUserId.mockResolvedValue('111');
       httpService.get.mockReturnValueOnce(
         of({
-          data: { id: 'MLA1', title: 'Zapatillas Running', seller_id: 111, variations: [{ id: 55 }] },
+          data: { id: 'MLA1', title: 'Cuadro completo', seller_id: 111, variations: [{ id: 55 }] },
         }),
       );
+      listingsRepository.findOne
+        .mockResolvedValueOnce(null) // chequeo de duplicado
+        .mockResolvedValueOnce({
+          id: 'listing-1',
+          mlItemId: 'MLA1',
+          mlVariationId: '55',
+          title: 'Cuadro completo',
+          components: [
+            { productId: 'product-1', quantityPerUnit: 1, product: productA },
+            { productId: 'product-2', quantityPerUnit: 4, product: productB },
+          ],
+        }); // findOneOrThrow tras guardar
 
       const listing = await service.create({
-        productId: 'product-1',
         mlItemId: 'MLA1',
         mlVariationId: '55',
+        components: [{ productId: 'product-1' }, { productId: 'product-2', quantityPerUnit: 4 }],
       });
 
-      expect(listing).toMatchObject({
-        productId: 'product-1',
-        mlItemId: 'MLA1',
-        mlVariationId: '55',
-        title: 'Zapatillas Running',
-      });
       expect(listingsRepository.save).toHaveBeenCalled();
+      expect(listing.components).toHaveLength(2);
+      expect(listing.components[1]).toMatchObject({ productId: 'product-2', quantityPerUnit: 4 });
     });
   });
 
   describe('findAll', () => {
-    it('delega en el repositorio con la relación de producto', async () => {
+    it('delega en el repositorio con la relación de componentes y sus productos', async () => {
       await service.findAll();
       expect(listingsRepository.find).toHaveBeenCalledWith(
-        expect.objectContaining({ relations: { product: true } }),
+        expect.objectContaining({ relations: { components: { product: true } } }),
       );
     });
   });
@@ -155,19 +180,19 @@ describe('MlListingsService', () => {
   });
 
   describe('findUnlinkedProducts', () => {
-    it('arma un left join contra ml_listings y filtra los que no tienen vínculo', async () => {
+    it('arma un left join contra los componentes y filtra productos sin ningún vínculo', async () => {
       const qb = {
         leftJoin: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
-        getMany: jest.fn().mockResolvedValue([product]),
+        getMany: jest.fn().mockResolvedValue([productA]),
       };
       productsRepository.createQueryBuilder.mockReturnValue(qb);
 
       const result = await service.findUnlinkedProducts();
 
-      expect(qb.where).toHaveBeenCalledWith('listing.id IS NULL');
-      expect(result).toEqual([product]);
+      expect(qb.where).toHaveBeenCalledWith('component.id IS NULL');
+      expect(result).toEqual([productA]);
     });
   });
 });

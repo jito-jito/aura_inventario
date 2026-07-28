@@ -1,9 +1,8 @@
-import { IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ArrayMinSize, IsArray, IsOptional, IsString, MinLength, ValidateNested } from 'class-validator';
+import { MlListingComponentDto } from './ml-listing-component.dto';
 
 export class CreateMlListingDto {
-  @IsUUID()
-  productId!: string;
-
   @IsString()
   @MinLength(1)
   mlItemId!: string;
@@ -11,4 +10,10 @@ export class CreateMlListingDto {
   @IsOptional()
   @IsString()
   mlVariationId?: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => MlListingComponentDto)
+  components!: MlListingComponentDto[];
 }

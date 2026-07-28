@@ -3,12 +3,11 @@ import {
   CreateDateColumn,
   Entity,
   Index,
-  JoinColumn,
-  ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Product } from '../../products/entities/product.entity';
+import { MlListingComponent } from './ml-listing-component.entity';
 
 export enum MlListingSyncStatus {
   PENDING = 'pending',
@@ -16,18 +15,16 @@ export enum MlListingSyncStatus {
   ERROR = 'error',
 }
 
+/**
+ * Una publicación de Mercado Libre puede corresponder a más de un producto interno
+ * (ej. una publicación de "cuadro" que consume un lienzo y un marco por unidad
+ * vendida). La composición vive en `components` (ver MlListingComponent).
+ */
 @Entity('ml_listings')
 @Index(['mlItemId', 'mlVariationId'])
 export class MlListing {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
-
-  @ManyToOne(() => Product, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'product_id' })
-  product!: Product;
-
-  @Column({ name: 'product_id' })
-  productId!: string;
 
   @Column()
   mlItemId!: string;
@@ -37,6 +34,11 @@ export class MlListing {
 
   @Column({ type: 'varchar', nullable: true })
   title!: string | null;
+
+  @OneToMany(() => MlListingComponent, (component) => component.listing, {
+    cascade: true,
+  })
+  components!: MlListingComponent[];
 
   @Column({ type: 'enum', enum: MlListingSyncStatus, default: MlListingSyncStatus.PENDING })
   syncStatus!: MlListingSyncStatus;

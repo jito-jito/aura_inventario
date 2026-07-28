@@ -47,7 +47,7 @@ describe('MonitoringService', () => {
       {
         lastSyncError: 'Timeout',
         mlItemId: 'MLA1',
-        product: { name: 'Producto A', sku: 'A-1' },
+        components: [{ product: { name: 'Producto A', sku: 'A-1' } }],
         updatedAt: new Date('2026-01-03T00:00:00Z'),
       },
     ]);

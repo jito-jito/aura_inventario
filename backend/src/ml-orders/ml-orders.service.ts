@@ -67,6 +67,13 @@ export class MlOrdersService {
     }
   }
 
+  /**
+   * Una publicación puede componerse de varios productos internos (kit): por
+   * ejemplo, una publicación de "cuadro" que consume un lienzo y un marco por
+   * unidad vendida. Cada componente se descuenta y se registra por separado,
+   * así una falla en uno (ej. stock insuficiente del marco) no bloquea a los
+   * demás (el lienzo sí se descuenta).
+   */
   private async processOrderItem(order: MlOrder, orderItem: MlOrderItem): Promise<void> {
     const mlItemId = orderItem.item.id;
     const mlVariationId =
@@ -74,62 +81,76 @@ export class MlOrdersService {
         ? String(orderItem.item.variation_id)
         : null;
 
-    const alreadyProcessed = await this.processedItemsRepository.findOne({
-      where: {
-        mlOrderId: String(order.id),
-        mlItemId,
-        mlVariationId: mlVariationId ?? IsNull(),
-      },
-    });
-    if (alreadyProcessed) {
-      this.logger.log(`Orden ${order.id}, item ${mlItemId} ya había sido procesado; se ignora`);
-      return;
-    }
-
     const listing = await this.listingsRepository.findOne({
       where: { mlItemId, mlVariationId: mlVariationId ?? IsNull() },
+      relations: { components: true },
     });
-    if (!listing) {
+    if (!listing || listing.components.length === 0) {
       this.logger.warn(
         `Publicación ${mlItemId}${mlVariationId ? '/' + mlVariationId : ''} no está vinculada a ningún producto; se ignora la venta`,
       );
       return;
     }
 
-    const record = this.processedItemsRepository.create({
-      mlOrderId: String(order.id),
-      mlItemId,
-      mlVariationId,
-      productId: listing.productId,
-      quantity: orderItem.quantity,
-      orderStatus: order.status,
-    });
+    let anyError = false;
+    let allAlreadyProcessed = true;
 
-    try {
-      await this.inventoryService.registerMovement({
-        productId: listing.productId,
-        type: MovementType.OUT,
-        quantity: orderItem.quantity,
-        reason: 'Venta Mercado Libre',
-        reference: `ml-order:${order.id}`,
+    for (const component of listing.components) {
+      const alreadyProcessed = await this.processedItemsRepository.findOne({
+        where: {
+          mlOrderId: String(order.id),
+          mlItemId,
+          mlVariationId: mlVariationId ?? IsNull(),
+          productId: component.productId,
+        },
+      });
+      if (alreadyProcessed) {
+        continue;
+      }
+      allAlreadyProcessed = false;
+
+      const quantity = orderItem.quantity * component.quantityPerUnit;
+      const record = this.processedItemsRepository.create({
+        mlOrderId: String(order.id),
+        mlItemId,
+        mlVariationId,
+        productId: component.productId,
+        quantity,
+        orderStatus: order.status,
       });
 
-      record.status = MlProcessedOrderItemStatus.PROCESSED;
-      listing.syncStatus = MlListingSyncStatus.SYNCED;
-      listing.lastSyncedAt = new Date();
-      listing.lastSyncError = null;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error desconocido';
-      this.logger.error(
-        `No se pudo descontar stock por la orden ${order.id}, item ${mlItemId}: ${message}`,
-      );
-      record.status = MlProcessedOrderItemStatus.ERROR;
-      record.errorMessage = message;
-      listing.syncStatus = MlListingSyncStatus.ERROR;
-      listing.lastSyncError = message;
+      try {
+        await this.inventoryService.registerMovement({
+          productId: component.productId,
+          type: MovementType.OUT,
+          quantity,
+          reason: 'Venta Mercado Libre',
+          reference: `ml-order:${order.id}`,
+        });
+        record.status = MlProcessedOrderItemStatus.PROCESSED;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Error desconocido';
+        this.logger.error(
+          `No se pudo descontar stock por la orden ${order.id}, item ${mlItemId}, producto ${component.productId}: ${message}`,
+        );
+        record.status = MlProcessedOrderItemStatus.ERROR;
+        record.errorMessage = message;
+        anyError = true;
+      }
+
+      await this.processedItemsRepository.save(record);
     }
 
-    await this.processedItemsRepository.save(record);
+    if (allAlreadyProcessed) {
+      this.logger.log(`Orden ${order.id}, item ${mlItemId} ya había sido procesado; se ignora`);
+      return;
+    }
+
+    listing.syncStatus = anyError ? MlListingSyncStatus.ERROR : MlListingSyncStatus.SYNCED;
+    listing.lastSyncedAt = new Date();
+    listing.lastSyncError = anyError
+      ? 'No se pudo descontar el stock de algún componente de esta publicación; revisar el detalle en ventas recientes'
+      : null;
     await this.listingsRepository.save(listing);
   }
 

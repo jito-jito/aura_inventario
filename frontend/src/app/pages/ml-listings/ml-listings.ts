@@ -14,12 +14,15 @@ import {
   IonSelectOption,
   IonInput,
   IonButton,
+  IonIcon,
   IonList,
   IonBadge,
   IonText,
   IonChip,
   AlertController,
 } from '@ionic/angular/standalone';
+import { addIcons } from 'ionicons';
+import { addOutline, trashOutline } from 'ionicons/icons';
 import { MlListingsService } from '../../core/ml-listings.service';
 import { ProductsService } from '../../core/products.service';
 import { MlListing, MlListingSyncStatus } from '../../core/models/ml-listing.model';
@@ -36,6 +39,11 @@ const STATUS_COLORS: Record<MlListingSyncStatus, string> = {
   synced: 'success',
   error: 'danger',
 };
+
+interface ComponentRow {
+  productId: string | null;
+  quantityPerUnit: number;
+}
 
 @Component({
   selector: 'app-ml-listings',
@@ -54,6 +62,7 @@ const STATUS_COLORS: Record<MlListingSyncStatus, string> = {
     IonSelectOption,
     IonInput,
     IonButton,
+    IonIcon,
     IonList,
     IonBadge,
     IonText,
@@ -69,17 +78,19 @@ export class MlListings implements OnInit {
   errorMessage = signal<string | null>(null);
   saving = signal(false);
 
-  form: { productId: string | null; mlItemId: string; mlVariationId: string } = {
-    productId: null,
+  form: { mlItemId: string; mlVariationId: string; components: ComponentRow[] } = {
     mlItemId: '',
     mlVariationId: '',
+    components: [{ productId: null, quantityPerUnit: 1 }],
   };
 
   constructor(
     private readonly mlListingsService: MlListingsService,
     private readonly productsService: ProductsService,
     private readonly alertController: AlertController,
-  ) {}
+  ) {
+    addIcons({ addOutline, trashOutline });
+  }
 
   ngOnInit(): void {
     this.loadAll();
@@ -104,8 +115,23 @@ export class MlListings implements OnInit {
     return STATUS_COLORS[status];
   }
 
+  addComponentRow(): void {
+    this.form.components.push({ productId: null, quantityPerUnit: 1 });
+  }
+
+  removeComponentRow(index: number): void {
+    this.form.components.splice(index, 1);
+  }
+
   async link(): Promise<void> {
-    if (!this.form.productId || !this.form.mlItemId.trim()) {
+    const components = this.form.components
+      .filter((row) => row.productId)
+      .map((row) => ({
+        productId: row.productId as string,
+        quantityPerUnit: row.quantityPerUnit || 1,
+      }));
+
+    if (!this.form.mlItemId.trim() || components.length === 0) {
       return;
     }
 
@@ -113,11 +139,15 @@ export class MlListings implements OnInit {
     this.errorMessage.set(null);
     try {
       await this.mlListingsService.create({
-        productId: this.form.productId,
         mlItemId: this.form.mlItemId.trim(),
         mlVariationId: this.form.mlVariationId.trim() || undefined,
+        components,
       });
-      this.form = { productId: null, mlItemId: '', mlVariationId: '' };
+      this.form = {
+        mlItemId: '',
+        mlVariationId: '',
+        components: [{ productId: null, quantityPerUnit: 1 }],
+      };
       await this.loadAll();
     } catch (error) {
       const message =
@@ -129,10 +159,16 @@ export class MlListings implements OnInit {
     }
   }
 
+  componentsSummary(listing: MlListing): string {
+    return listing.components
+      .map((c) => `${c.product.name} (${c.product.sku}) ×${c.quantityPerUnit}`)
+      .join(' + ');
+  }
+
   async unlink(listing: MlListing): Promise<void> {
     const alert = await this.alertController.create({
       header: 'Desvincular publicación',
-      message: `¿Desvincular "${listing.title ?? listing.mlItemId}" del producto ${listing.product.name}?`,
+      message: `¿Desvincular "${listing.title ?? listing.mlItemId}" (${this.componentsSummary(listing)})?`,
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
         {

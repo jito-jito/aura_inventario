@@ -28,7 +28,8 @@ Monorepo simple (sin necesidad de Nx para un MVP de este tamaño):
 - `products` — sku, name, description, cost, stock, created_at, updated_at
 - `inventory_movements` — product_id, type (`in` | `out` | `adjustment`), quantity, reason, reference, created_at
 - `ml_connection` — access_token, refresh_token, expires_at, ml_user_id, status
-- `ml_listings` — product_id (FK), ml_item_id, ml_variation_id (nullable), sync_status, last_synced_at
+- `ml_listings` — ml_item_id, ml_variation_id (nullable), title, sync_status, last_synced_at. **Una publicación puede componerse de más de un producto interno** (ej. una publicación de "cuadro" que consume un lienzo y un marco por unidad vendida); la composición vive en `ml_listing_components`.
+- `ml_listing_components` — listing_id (FK), product_id (FK), quantity_per_unit (cuánto se descuenta de ese producto por cada unidad vendida de la publicación)
 - `ml_processed_orders` — ml_order_id (unique), status, product_id, quantity, processed_at → garantiza idempotencia (historia 6, cite:23/cite:10). No incluye ningún campo de sincronización hacia ML: el registro es solo para no descontar dos veces la misma venta.
 - `integration_logs` — type (`webhook`|`sync`|`oauth`), level (`info`|`error`), message, payload, created_at, resolved
 - Metadata de backups: registrada como job, no requiere tabla propia en el MVP.

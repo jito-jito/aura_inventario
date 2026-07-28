@@ -31,7 +31,7 @@ export class MonitoringService {
       this.connectionRepository.find({ where: { status: MlConnectionStatus.ERROR } }),
       this.listingsRepository.find({
         where: { syncStatus: MlListingSyncStatus.ERROR },
-        relations: { product: true },
+        relations: { components: { product: true } },
       }),
       this.processedItemsRepository.find({
         where: { status: MlProcessedOrderItemStatus.ERROR },
@@ -49,7 +49,7 @@ export class MonitoringService {
       ...listingsInError.map((listing) => ({
         type: 'ml_listing' as const,
         message: listing.lastSyncError ?? 'Error al procesar la publicación vinculada',
-        context: `${listing.product.name} (${listing.product.sku}) · ${listing.mlItemId}`,
+        context: `${listing.components.map((c) => `${c.product.name} (${c.product.sku})`).join(' + ')} · ${listing.mlItemId}`,
         occurredAt: listing.updatedAt.toISOString(),
       })),
       ...orderItemsInError.map((item) => ({

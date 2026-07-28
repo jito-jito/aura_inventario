@@ -8,18 +8,12 @@
 </ion-header>
 
 <ion-content class="ion-padding">
-  <h2>Vincular producto con una publicación</h2>
+  <h2>Vincular una publicación</h2>
+  <p>
+    Una publicación puede componerse de más de un producto interno (por ejemplo, un
+    "cuadro" que consume un lienzo y un marco por cada unidad vendida).
+  </p>
   <form (ngSubmit)="link()" class="link-form">
-    <ion-item>
-      <ion-label>Producto</ion-label>
-      <ion-select placeholder="Seleccionar producto" [(ngModel)]="form.productId" name="productId">
-        @for (product of products(); track product.id) {
-          <ion-select-option [value]="product.id">
-            {{ product.name }} ({{ product.sku }})
-          </ion-select-option>
-        }
-      </ion-select>
-    </ion-item>
     <ion-item>
       <ion-label position="floating">Item ID de Mercado Libre</ion-label>
       <ion-input name="mlItemId" placeholder="MLA123456789" [(ngModel)]="form.mlItemId" required></ion-input>
@@ -28,6 +22,38 @@
       <ion-label position="floating">Variation ID (opcional)</ion-label>
       <ion-input name="mlVariationId" [(ngModel)]="form.mlVariationId"></ion-input>
     </ion-item>
+
+    <h3 class="ion-margin-top">Componentes (productos internos)</h3>
+    @for (row of form.components; track $index) {
+      <ion-item>
+        <ion-label>Producto</ion-label>
+        <ion-select placeholder="Seleccionar producto" [(ngModel)]="row.productId" [name]="'component-product-' + $index">
+          @for (product of products(); track product.id) {
+            <ion-select-option [value]="product.id">
+              {{ product.name }} ({{ product.sku }})
+            </ion-select-option>
+          }
+        </ion-select>
+      </ion-item>
+      <ion-item>
+        <ion-label position="floating">Cantidad por unidad vendida</ion-label>
+        <ion-input
+          type="number"
+          min="1"
+          [(ngModel)]="row.quantityPerUnit"
+          [name]="'component-qty-' + $index"
+        ></ion-input>
+        @if (form.components.length > 1) {
+          <ion-button slot="end" fill="clear" color="danger" (click)="removeComponentRow($index)">
+            <ion-icon name="trash-outline"></ion-icon>
+          </ion-button>
+        }
+      </ion-item>
+    }
+    <ion-button fill="outline" size="small" type="button" (click)="addComponentRow()">
+      <ion-icon name="add-outline" slot="start"></ion-icon>
+      Agregar componente
+    </ion-button>
 
     @if (errorMessage()) {
       <ion-text color="danger">
@@ -54,12 +80,18 @@
     @for (listing of listings(); track listing.id) {
       <ion-item>
         <ion-label>
-          <h3>{{ listing.product.name }} ({{ listing.product.sku }})</h3>
-          <p>{{ listing.title || listing.mlItemId }}</p>
+          <h3>{{ listing.title || listing.mlItemId }}</h3>
           <p>
             Item: {{ listing.mlItemId }}
             @if (listing.mlVariationId) {
               · Variación: {{ listing.mlVariationId }}
+            }
+          </p>
+          <p>
+            @for (component of listing.components; track component.id) {
+              <ion-chip color="tertiary">
+                {{ component.product.name }} ({{ component.product.sku }}) ×{{ component.quantityPerUnit }}
+              </ion-chip>
             }
           </p>
           @if (listing.lastSyncError) {

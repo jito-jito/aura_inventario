@@ -5,9 +5,11 @@ MVP de inventario para Mercado Libre. Ver [`PLAN.md`](./PLAN.md) para el alcance
 ## Estructura
 
 ```
-/backend    → API NestJS
-/frontend   → App Ionic Angular (PWA)
+/backend    → API NestJS (incluye Dockerfile de producción)
+/frontend   → App Ionic Angular (PWA) (incluye Dockerfile de producción + nginx.conf)
 /docker-compose.yml → Postgres + Redis para desarrollo local
+/docker-compose.prod.yml → Stack completo (Postgres + Redis + backend + frontend) para producción
+/DEPLOY.md  → Guía de despliegue en producción
 ```
 
 ## Requisitos
@@ -52,6 +54,7 @@ npm run start:dev
 - `POST /ml/webhooks/orders` (público) — callback de notificaciones de Mercado Libre. `GET /ml/orders/processed` (protegido) — historial de ítems de órdenes procesados.
 - `GET /monitoring/errors` — errores agregados de conexión ML, publicaciones vinculadas y procesamiento de ventas.
 - `POST /backups`, `GET /backups`, `GET /backups/:filename/download` — respaldos de la base de datos (ver sección más abajo).
+- `GET /projections`, `POST /projections`, `GET /projections/:id`, `PATCH /projections/:id`, `DELETE /projections/:id`, `GET /projections/suggested-units` — módulo de proyecciones de ganancias (simulación, no toca inventario ni ML; ver sección 10 de `PLAN.md`).
 
 ### Conectar una cuenta de Mercado Libre
 
@@ -113,3 +116,7 @@ cd frontend && npm test
 ## Variables de entorno
 
 Ver `.env.example` en la raíz (Postgres/Redis) y en `backend/.env.example` (API, JWT, admin).
+
+## Despliegue en producción
+
+Ver [`DEPLOY.md`](./DEPLOY.md): build de imágenes Docker (backend + frontend/nginx), `docker-compose.prod.yml`, migraciones, variables de entorno obligatorias, configuración de la app de Mercado Libre con dominio real, HTTPS y respaldos.

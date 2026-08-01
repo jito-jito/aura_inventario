@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -20,6 +22,9 @@ import { ProjectionsModule } from './projections/projections.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ThrottlerModule.forRoot({
+      throttlers: [{ ttl: 60_000, limit: 100 }],
+    }),
     ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
@@ -31,7 +36,11 @@ import { ProjectionsModule } from './projections/projections.module';
         password: config.get<string>('DB_PASSWORD', 'aura'),
         database: config.get<string>('DB_NAME', 'aura_inventario'),
         autoLoadEntities: true,
-        synchronize: config.get<string>('NODE_ENV', 'development') !== 'production',
+        synchronize:
+          config.get<string>('NODE_ENV', 'development') !== 'production',
+        migrations: [__dirname + '/migrations/*{.ts,.js}'],
+        migrationsRun:
+          config.get<string>('NODE_ENV', 'development') === 'production',
       }),
     }),
     BullModule.forRootAsync({
@@ -54,6 +63,6 @@ import { ProjectionsModule } from './projections/projections.module';
     ProjectionsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

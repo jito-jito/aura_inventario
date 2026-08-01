@@ -24,6 +24,7 @@ import {
   alertCircleOutline,
   logOutOutline,
   cloudUploadOutline,
+  trendingUpOutline,
 } from 'ionicons/icons';
 import { AuthService } from '../core/auth.service';
 
@@ -63,6 +64,7 @@ export class Shell {
     { label: 'Publicaciones vinculadas', path: '/ml-listings', icon: 'storefront-outline' },
     { label: 'Logs / Errores', path: '/logs', icon: 'alert-circle-outline' },
     { label: 'Respaldos', path: '/backups', icon: 'cloud-upload-outline' },
+    { label: 'Proyecciones', path: '/projections', icon: 'trending-up-outline' },
   ];
 
   constructor(
@@ -78,6 +80,7 @@ export class Shell {
       alertCircleOutline,
       logOutOutline,
       cloudUploadOutline,
+      trendingUpOutline,
     });
   }
 

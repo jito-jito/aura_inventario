@@ -46,6 +46,7 @@ Monorepo simple (sin necesidad de Nx para un MVP de este tamaño):
   - `MlOrdersModule` — consulta detalle de orden, valida estado, aplica idempotencia y descuenta stock interno (solo lectura hacia Mercado Libre; no escribe nada de vuelta)
 - `MonitoringModule` — endpoints para dashboard (ventas recientes, errores, stock bajo)
 - `BackupModule` — job programado de respaldo + endpoint de exportación manual
+- `ProjectionsModule` — módulo independiente de simulación financiera (punto de equilibrio, impacto de precio). No modifica productos, stock ni publicaciones; ver sección 10.
 
 ## 5. Frontend Ionic Angular (PWA) — páginas
 
@@ -56,6 +57,7 @@ Monorepo simple (sin necesidad de Nx para un MVP de este tamaño):
 - **Conexión Mercado Libre** — estado (conectado/desconectado), botón conectar/reconectar
 - **Vinculación de publicaciones** — vincular producto ↔ `item_id`/variación, ver productos sin vincular, estado de sync
 - **Logs / Errores** — vista de incidentes de integración
+- **Proyecciones** — módulo separado de simulación de ganancias (ver sección 10)
 
 PWA: app shell cacheable offline (lectura), las operaciones que escriben stock requieren conexión (evita inconsistencias con Mercado Libre).
 
@@ -93,9 +95,21 @@ Además, por decisión explícita, queda fuera de este MVP: **cualquier escritur
 
 ## 9. Criterios de éxito (control de avance)
 
-- [ ] Catálogo interno con stock maestro operativo
-- [ ] Productos vinculados a publicaciones reales
-- [ ] Ventas detectadas por webhook + consulta de orden
-- [ ] Stock descontado correctamente en BD propia
-- [ ] Errores visibles en dashboard
-- [ ] Respaldo básico de datos funcionando
+- [x] Catálogo interno con stock maestro operativo
+- [x] Productos vinculados a publicaciones reales (con soporte de kit: una publicación puede componerse de varios productos)
+- [x] Ventas detectadas por webhook + consulta de orden
+- [x] Stock descontado correctamente en BD propia
+- [x] Errores visibles en dashboard
+- [x] Respaldo básico de datos funcionando
+- [x] Módulo de proyecciones de ganancias operativo (ver sección 10)
+
+## 10. Módulo adicional: Proyecciones de ganancias
+
+Agregado fuera de las fases originales, a pedido explícito, como **módulo independiente** de simulación financiera. No forma parte del flujo de inventario/Mercado Libre y no lo modifica.
+
+- **Objetivo:** permitir estimar ventas de un producto (real o hipotético) a lo largo de varios períodos (semanas o meses) y visualizar el punto de equilibrio, la ganancia proyectada y el impacto de subir o bajar el precio de venta.
+- **Modelo de datos:** `projection_scenarios` (nombre, producto opcional vinculado, costo unitario, precio unitario, costos fijos por período, tipo de período) + `projection_periods` (índice de período, unidades estimadas), en cascada bajo el escenario.
+- **Cálculo (puro, sin efectos secundarios):** margen de contribución por unidad y en porcentaje, unidades/ingreso de equilibrio por período, y por cada período: ingreso, costo variable, ganancia neta y ganancia neta acumulada, además del primer período donde la acumulada se vuelve positiva ("equilibrio en el tiempo").
+- **Sugerencia con historial real:** si el escenario está vinculado a un producto real, se puede consultar el promedio histórico de unidades vendidas por período a partir de `ml_processed_orders` (ventas ya detectadas y procesadas) para prellenar la estimación, sin obligar a usarla.
+- **Simulador "qué pasa si":** en el frontend, un control de precio recalcula el margen y la ganancia total al instante (cálculo duplicado en el cliente, sin round-trip al backend) para comparar contra el escenario guardado.
+- **Explícitamente fuera de este módulo:** no modifica `products.cost`/`stock`, no crea movimientos de inventario, no escribe ni lee nada de Mercado Libre más allá de leer el historial ya sincronizado de ventas. Es una herramienta de simulación, no de ejecución.

@@ -1,0 +1,289 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+    </ion-buttons>
+    <ion-title>Proyecciones</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <p>
+    Simulador de ganancias: estimá ventas a lo largo del tiempo para un producto (real o
+    hipotético) y mirá el punto de equilibrio y el impacto de subir o bajar el precio.
+    No modifica el costo real del producto ni el stock.
+  </p>
+
+  <ion-button (click)="openCreateForm()">Nuevo escenario</ion-button>
+
+  @if (loading()) {
+    <ion-spinner name="dots"></ion-spinner>
+  } @else {
+    <ion-list class="scenario-list">
+      @for (scenario of scenarios(); track scenario.id) {
+        <ion-item [button]="true" (click)="selectScenario(scenario)">
+          <ion-label>
+            <h2>{{ scenario.name }}</h2>
+            <p>
+              @if (scenario.product) {
+                {{ scenario.product.name }} ({{ scenario.product.sku }}) ·
+              }
+              Precio {{ formatCurrency(Number(scenario.unitPrice)) }}
+            </p>
+            <p>
+              @if (scenario.metrics.breakEvenUnitsPerPeriod !== null) {
+                Equilibrio: {{ scenario.metrics.breakEvenUnitsPerPeriod | number: '1.0-1' }} u/{{ periodTypeLabel(scenario.periodType) }}
+              } @else {
+                Con este precio y costo nunca se cubre el costo fijo
+              }
+              · Ganancia proyectada: {{ formatCurrency(scenario.metrics.totalNetProfit) }}
+            </p>
+          </ion-label>
+          <ion-button slot="end" fill="clear" (click)="openEditForm(scenario); $event.stopPropagation()">
+            Editar
+          </ion-button>
+          <ion-button slot="end" fill="clear" color="danger" (click)="deleteScenario(scenario); $event.stopPropagation()">
+            Eliminar
+          </ion-button>
+        </ion-item>
+      } @empty {
+        <ion-item>
+          <ion-label>Todavía no hay escenarios de proyección.</ion-label>
+        </ion-item>
+      }
+    </ion-list>
+  }
+
+  @if (selected(); as scenario) {
+    <div class="detail ion-margin-top">
+      <h2>{{ scenario.name }}</h2>
+
+      <div class="stat-grid">
+        <div class="stat-tile">
+          <span class="label">Margen de contribución</span>
+          <span class="value">{{ formatCurrency(scenario.metrics.contributionMarginPerUnit) }}</span>
+          <span class="sub">
+            @if (scenario.metrics.contributionMarginPercent !== null) {
+              {{ scenario.metrics.contributionMarginPercent | number: '1.0-1' }}% del precio
+            }
+          </span>
+        </div>
+        <div class="stat-tile">
+          <span class="label">Punto de equilibrio</span>
+          @if (scenario.metrics.breakEvenUnitsPerPeriod !== null) {
+            <span class="value">{{ scenario.metrics.breakEvenUnitsPerPeriod | number: '1.0-1' }} u/{{ periodTypeLabel(scenario.periodType) }}</span>
+            <span class="sub">{{ formatCurrency(scenario.metrics.breakEvenRevenuePerPeriod) }} de ingreso</span>
+          } @else {
+            <span class="value warn">No se alcanza</span>
+            <span class="sub">el precio no cubre el costo variable + fijo</span>
+          }
+        </div>
+        <div class="stat-tile">
+          <span class="label">Equilibrio en el tiempo</span>
+          @if (scenario.metrics.breakEvenPeriodIndex !== null) {
+            <span class="value">{{ periodTypeLabel(scenario.periodType) | titlecase }} {{ scenario.metrics.breakEvenPeriodIndex + 1 }}</span>
+            <span class="sub">primer período con ganancia acumulada positiva</span>
+          } @else {
+            <span class="value warn">Nunca en el rango</span>
+            <span class="sub">con esta proyección de ventas</span>
+          }
+        </div>
+        <div class="stat-tile">
+          <span class="label">Ganancia total proyectada</span>
+          <span class="value" [class.warn]="scenario.metrics.totalNetProfit < 0">
+            {{ formatCurrency(scenario.metrics.totalNetProfit) }}
+          </span>
+          <span class="sub">{{ scenario.periods.length }} {{ periodTypeLabel(scenario.periodType) }}(es)</span>
+        </div>
+      </div>
+
+      <h3 class="ion-margin-top">Ganancia acumulada en el tiempo</h3>
+      <app-profit-chart
+        [periods]="scenario.metrics.periods"
+        [periodType]="scenario.periodType"
+        [breakEvenPeriodIndex]="scenario.metrics.breakEvenPeriodIndex"
+      ></app-profit-chart>
+
+      <h3 class="ion-margin-top">Simulador: ¿qué pasa si cambio el precio?</h3>
+      <ion-item>
+        <ion-label>Precio a probar: {{ formatCurrency(whatIfPrice()) }}</ion-label>
+      </ion-item>
+      <ion-range
+        [min]="0"
+        [max]="Number(scenario.unitPrice) * 2 || 100"
+        [step]="1"
+        [value]="whatIfPrice() ?? Number(scenario.unitPrice)"
+        (ionInput)="whatIfPrice.set($any($event.detail.value))"
+      ></ion-range>
+
+      @if (whatIfMetrics(); as whatIf) {
+        <div class="whatif-summary">
+          <p>
+            Margen: {{ formatCurrency(whatIf.contributionMarginPerUnit) }} por unidad
+            @if (whatIf.breakEvenUnitsPerPeriod !== null) {
+              · Equilibrio: {{ whatIf.breakEvenUnitsPerPeriod | number: '1.0-1' }} u/{{ periodTypeLabel(scenario.periodType) }}
+            } @else {
+              · nunca se alcanza el equilibrio a este precio
+            }
+          </p>
+          <p>
+            Ganancia total proyectada a este precio: <strong>{{ formatCurrency(whatIf.totalNetProfit) }}</strong>
+            @if (profitDelta(); as delta) {
+              <span [class.positive]="delta > 0" [class.negative]="delta < 0" class="delta">
+                ({{ delta > 0 ? '+' : '' }}{{ formatCurrency(delta) }} vs. precio guardado)
+              </span>
+            }
+          </p>
+        </div>
+      }
+
+      <h3 class="ion-margin-top">Detalle por período</h3>
+      <div class="period-table-wrapper">
+        <table class="period-table">
+          <thead>
+            <tr>
+              <th>Período</th>
+              <th>Unidades</th>
+              <th>Ingreso</th>
+              <th>Costo variable</th>
+              <th>Ganancia neta</th>
+              <th>Acumulada</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (period of scenario.metrics.periods; track period.periodIndex) {
+              <tr [class.breakeven-row]="period.periodIndex === scenario.metrics.breakEvenPeriodIndex">
+                <td>{{ periodTypeLabel(scenario.periodType) | titlecase }} {{ period.periodIndex + 1 }}</td>
+                <td>{{ period.estimatedUnits }}</td>
+                <td>{{ formatCurrency(period.revenue) }}</td>
+                <td>{{ formatCurrency(period.variableCost) }}</td>
+                <td [class.negative]="period.netProfit < 0">{{ formatCurrency(period.netProfit) }}</td>
+                <td [class.negative]="period.cumulativeNetProfit < 0">{{ formatCurrency(period.cumulativeNetProfit) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</ion-content>
+
+<ion-modal [isOpen]="showForm()" (didDismiss)="closeForm()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>{{ editingId() ? 'Editar escenario' : 'Nuevo escenario' }}</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="closeForm()">Cerrar</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="ion-padding">
+      <form (ngSubmit)="save()">
+        <ion-item>
+          <ion-label position="floating">Nombre del escenario</ion-label>
+          <ion-input name="name" [(ngModel)]="form.name" required></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-label>Producto (opcional)</ion-label>
+          <ion-select placeholder="Sin vincular" [(ngModel)]="form.productId" name="productId">
+            @for (product of products(); track product.id) {
+              <ion-select-option [value]="product.id">
+                {{ product.name }} ({{ product.sku }})
+              </ion-select-option>
+            }
+          </ion-select>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="floating">Costo unitario</ion-label>
+          <ion-input type="number" name="unitCost" [(ngModel)]="form.unitCost" required></ion-input>
+          @if (form.productId) {
+            <ion-button slot="end" fill="clear" size="small" type="button" (click)="useCostFromProduct()">
+              Usar costo del producto
+            </ion-button>
+          }
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="floating">Precio de venta unitario</ion-label>
+          <ion-input type="number" name="unitPrice" [(ngModel)]="form.unitPrice" required></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="floating">Costos fijos por período</ion-label>
+          <ion-input type="number" name="fixedCostsPerPeriod" [(ngModel)]="form.fixedCostsPerPeriod"></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-label>Tipo de período</ion-label>
+          <ion-select [(ngModel)]="form.periodType" name="periodType">
+            <ion-select-option value="weekly">Semanal</ion-select-option>
+            <ion-select-option value="monthly">Mensual</ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="floating">Cantidad de períodos a proyectar</ion-label>
+          <ion-input
+            type="number"
+            min="1"
+            max="60"
+            [(ngModel)]="form.periodsCount"
+            name="periodsCount"
+            (ionChange)="onPeriodsCountChange()"
+          ></ion-input>
+        </ion-item>
+
+        @if (form.productId) {
+          <ion-button fill="outline" size="small" type="button" [disabled]="suggestionLoading()" (click)="fetchSuggestion()">
+            {{ suggestionLoading() ? 'Consultando historial...' : 'Sugerir con historial real de ventas' }}
+          </ion-button>
+          @if (suggestion(); as s) {
+            <p class="suggestion-text">
+              @if (s.hasHistoricalData) {
+                Promedio histórico: <strong>{{ s.averageUnitsPerPeriod }}</strong> unidades/{{ periodTypeLabel(form.periodType) }}
+                (basado en {{ s.totalUnitsSold }} unidades vendidas en {{ s.observedPeriods }} {{ periodTypeLabel(form.periodType) }}(es) observados).
+                <ion-button size="small" fill="clear" type="button" (click)="applySuggestion()">Usar esta sugerencia</ion-button>
+              } @else {
+                Este producto todavía no tiene ventas procesadas registradas; no hay sugerencia disponible.
+              }
+            </p>
+          }
+        }
+
+        <h3 class="ion-margin-top">Unidades estimadas por período</h3>
+        <div class="quick-fill">
+          <ion-input
+            type="number"
+            placeholder="Cantidad pareja para todos los períodos"
+            #flatInput
+          ></ion-input>
+          <ion-button fill="outline" size="small" type="button" (click)="applyFlatEstimate($any(flatInput).value || 0)">
+            Aplicar a todos
+          </ion-button>
+        </div>
+
+        <div class="periods-grid">
+          @for (period of form.periods; track period.periodIndex) {
+            <ion-item>
+              <ion-label position="floating">{{ periodTypeLabel(form.periodType) | titlecase }} {{ period.periodIndex + 1 }}</ion-label>
+              <ion-input type="number" min="0" [(ngModel)]="period.estimatedUnits" [name]="'period-' + period.periodIndex"></ion-input>
+            </ion-item>
+          }
+        </div>
+
+        @if (errorMessage()) {
+          <ion-text color="danger">
+            <p>{{ errorMessage() }}</p>
+          </ion-text>
+        }
+
+        <ion-button expand="block" type="submit" class="ion-margin-top" [disabled]="saving()">
+          {{ saving() ? 'Guardando...' : 'Guardar escenario' }}
+        </ion-button>
+      </form>
+    </ion-content>
+  </ng-template>
+</ion-modal>

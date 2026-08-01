@@ -1,0 +1,64 @@
+<div class="chart-root">
+  @if (points().length === 0) {
+    <p class="empty">Agregá al menos un período para ver el gráfico.</p>
+  } @else {
+    <svg [attr.viewBox]="'0 0 ' + width + ' ' + height" preserveAspectRatio="xMidYMid meet">
+      <!-- gridlines -->
+      @for (tick of yTicks(); track tick.value) {
+        <line
+          x1="56"
+          [attr.x2]="width - 16"
+          [attr.y1]="tick.y"
+          [attr.y2]="tick.y"
+          [attr.class]="tick.value === 0 ? 'baseline' : 'gridline'"
+        ></line>
+        <text x="50" [attr.y]="tick.y + 4" class="tick-label" text-anchor="end">
+          {{ formatCurrency(tick.value) }}
+        </text>
+      }
+
+      <!-- crosshair -->
+      @if (hoveredPoint(); as hp) {
+        <line class="crosshair" [attr.x1]="hp.x" [attr.x2]="hp.x" y1="28" [attr.y2]="height - 28"></line>
+      }
+
+      <!-- línea de ganancia acumulada -->
+      <path [attr.d]="linePath()" class="profit-line"></path>
+
+      <!-- puntos -->
+      @for (point of points(); track point.period.periodIndex) {
+        <circle
+          [attr.cx]="point.x"
+          [attr.cy]="point.y"
+          [attr.r]="point.period.periodIndex === breakEvenPeriodIndex ? 6 : 4"
+          [attr.class]="point.period.periodIndex === breakEvenPeriodIndex ? 'point point-breakeven' : 'point'"
+        ></circle>
+      }
+
+      @if (breakEvenPoint(); as bp) {
+        <text [attr.x]="bp.x" [attr.y]="28" class="breakeven-label" text-anchor="middle">
+          Equilibrio
+        </text>
+      }
+
+      <!-- etiqueta del valor final -->
+      @if (points().length > 0) {
+        <text
+          [attr.x]="points()[points().length - 1].x"
+          [attr.y]="points()[points().length - 1].y - 12"
+          class="end-label"
+          text-anchor="end"
+        >
+          {{ formatCurrency(points()[points().length - 1].period.cumulativeNetProfit) }}
+        </text>
+      }
+    </svg>
+
+    @if (hoveredPoint(); as hp) {
+      <div class="tooltip" [style.left]="(hp.x / width) * 100 + '%'">
+        <strong>{{ formatCurrency(hp.period.cumulativeNetProfit) }}</strong>
+        <span>{{ periodLabel(hp.period.periodIndex) }} · ganancia acumulada</span>
+      </div>
+    }
+  }
+</div>

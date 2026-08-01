@@ -13,6 +13,7 @@ import { MlListingsModule } from './ml-listings/ml-listings.module';
 import { MlOrdersModule } from './ml-orders/ml-orders.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { BackupModule } from './backups/backup.module';
+import { ProjectionsModule } from './projections/projections.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { BackupModule } from './backups/backup.module';
     MlOrdersModule,
     MonitoringModule,
     BackupModule,
+    ProjectionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

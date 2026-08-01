@@ -77,6 +77,12 @@ PWA: app shell cacheable offline (lectura), las operaciones que escriben stock r
 
 **Total estimado:** ~8–9 semanas para una persona; menos con más desarrolladores en paralelo (backend y frontend pueden avanzar simultáneamente desde la fase 1).
 
+### Estado real de la Fase 8
+
+Hecho y verificado contra Postgres/Redis reales en el entorno de desarrollo: hardening del backend (helmet, rate limiting, CORS restringido, validación de variables de entorno al bootear en producción), migraciones reales de TypeORM (antes solo existía `synchronize`, que estaba deshabilitado en producción sin ningún reemplazo — un despliegue nuevo no podía crear el esquema), corrección del build de producción del frontend (no tenía `environment.prod.ts` ni el budget de bundle ajustado; ambos hacían fallar o dejaban roto un build real), Dockerfiles de backend y frontend, `docker-compose.prod.yml`, y `DEPLOY.md`.
+
+**No verificado:** los Dockerfiles y `docker-compose.prod.yml` nunca se construyeron ni corrieron de verdad (este entorno no tiene un daemon de Docker disponible). El flujo end-to-end con una cuenta real de Mercado Libre tampoco se pudo probar en ningún momento del proyecto (proxy de red bloqueado hacia `api.mercadolibre.com`/`auth.mercadolibre.com.ar`). No hay un despliegue real (servidor, dominio, TLS) confirmado. Detalle completo en `DEPLOY.md`, sección "Qué NO está verificado".
+
 > Nota sobre el orden: el documento de alcance sugiere OAuth en la posición 3, pero técnicamente la vinculación con publicaciones reales (posición 2) requiere un token de Mercado Libre vigente para poder consultar los `item_id` del vendedor. Por eso este plan adelanta la conexión OAuth antes de la vinculación. El resto del orden se mantiene igual.
 
 ## 7. Consideraciones técnicas clave

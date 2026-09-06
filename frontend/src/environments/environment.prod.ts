@@ -1,6 +1,7 @@
 export const environment = {
   production: true,
-  // Ruta relativa: en producción el mismo servidor web (nginx) que sirve la PWA
-  // reenvía /api/* al backend, así no hace falta hornear un dominio en el build.
-  apiUrl: '/api',
+  // Despliegue en Railway: frontend y backend son servicios separados con dominios
+  // públicos propios (no hay un nginx que reenvíe /api al backend por red interna),
+  // así que el build apunta directo al dominio del backend.
+  apiUrl: 'https://backend-aura-inventario.up.railway.app',
 };

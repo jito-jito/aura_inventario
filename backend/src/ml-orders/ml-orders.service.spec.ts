@@ -1,4 +1,4 @@
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { MlOrdersService } from './ml-orders.service';
 import { MlListingSyncStatus } from '../ml-listings/entities/ml-listing.entity';
 import { MlProcessedOrderItemStatus } from './entities/ml-processed-order-item.entity';
@@ -10,6 +10,7 @@ describe('MlOrdersService', () => {
   let inventoryService: { registerMovement: jest.Mock };
   let processedItemsRepository: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock; find: jest.Mock };
   let listingsRepository: { findOne: jest.Mock; save: jest.Mock };
+  let orderFetchErrorsRepository: { upsert: jest.Mock; delete: jest.Mock };
 
   const singleComponentListing = {
     id: 'listing-1',
@@ -35,6 +36,10 @@ describe('MlOrdersService', () => {
       findOne: jest.fn().mockResolvedValue({ ...singleComponentListing }),
       save: jest.fn((data) => Promise.resolve(data)),
     };
+    orderFetchErrorsRepository = {
+      upsert: jest.fn().mockResolvedValue(undefined),
+      delete: jest.fn().mockResolvedValue(undefined),
+    };
 
     service = new MlOrdersService(
       httpService as any,
@@ -42,6 +47,7 @@ describe('MlOrdersService', () => {
       inventoryService as any,
       processedItemsRepository as any,
       listingsRepository as any,
+      orderFetchErrorsRepository as any,
     );
   });
 
@@ -54,6 +60,30 @@ describe('MlOrdersService', () => {
 
     expect(inventoryService.registerMovement).not.toHaveBeenCalled();
     expect(processedItemsRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('registra el error y no descuenta stock si falla la consulta de la orden a Mercado Libre', async () => {
+    httpService.get.mockReturnValueOnce(throwError(() => new Error('Request failed with status code 403')));
+
+    await expect(service.processOrder('403-order')).rejects.toThrow(
+      'Request failed with status code 403',
+    );
+
+    expect(orderFetchErrorsRepository.upsert).toHaveBeenCalledWith(
+      { mlOrderId: '403-order', message: 'Request failed with status code 403' },
+      ['mlOrderId'],
+    );
+    expect(inventoryService.registerMovement).not.toHaveBeenCalled();
+  });
+
+  it('borra el error de consulta previo si la orden se puede volver a consultar con éxito', async () => {
+    httpService.get.mockReturnValueOnce(
+      of({ data: { id: 112, status: 'confirmed', order_items: [] } }),
+    );
+
+    await service.processOrder('112');
+
+    expect(orderFetchErrorsRepository.delete).toHaveBeenCalledWith({ mlOrderId: '112' });
   });
 
   it('ignora un item cuya publicación no está vinculada a ningún producto', async () => {

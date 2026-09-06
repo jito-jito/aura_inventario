@@ -12,20 +12,85 @@
       (ionInput)="onSearchChange($any($event.target).value)"
     ></ion-searchbar>
   </ion-toolbar>
+  <ion-toolbar>
+    <ion-segment
+      [value]="stockStatus() || 'all'"
+      (ionChange)="onStockStatusChange($any($event.detail.value))"
+    >
+      <ion-segment-button value="all">Ambos</ion-segment-button>
+      <ion-segment-button value="critical">Crítico</ion-segment-button>
+      <ion-segment-button value="ok">OK</ion-segment-button>
+    </ion-segment>
+    <ion-select
+      slot="end"
+      interface="popover"
+      placeholder="Ordenar por stock"
+      [value]="sortByStock() || null"
+      (ionChange)="onSortByStockChange($event.detail.value)"
+    >
+      <ion-select-option [value]="null">Sin ordenar</ion-select-option>
+      <ion-select-option value="asc">Stock: menor a mayor</ion-select-option>
+      <ion-select-option value="desc">Stock: mayor a menor</ion-select-option>
+    </ion-select>
+  </ion-toolbar>
+  <ion-toolbar>
+    @if (!selectionMode()) {
+      <ion-buttons slot="end">
+        <ion-button fill="clear" (click)="toggleSelectionMode()">Selección múltiple</ion-button>
+      </ion-buttons>
+    } @else {
+      <ion-label slot="start" class="ion-padding-start">
+        {{ selectedIds().size }} seleccionado(s)
+      </ion-label>
+      <ion-buttons slot="end">
+        <ion-button fill="clear" (click)="toggleSelectAll()">
+          {{ areAllVisibleSelected() ? 'Deseleccionar todos' : 'Seleccionar todos' }}
+        </ion-button>
+        <ion-button
+          fill="clear"
+          color="danger"
+          [disabled]="selectedIds().size === 0"
+          (click)="deleteSelected()"
+        >
+          Eliminar
+        </ion-button>
+        <ion-button fill="clear" color="medium" (click)="toggleSelectionMode()">Cancelar</ion-button>
+      </ion-buttons>
+    }
+  </ion-toolbar>
 </ion-header>
 
 <ion-content class="ion-padding">
   <ion-list>
     @for (product of products(); track product.id) {
-      <ion-item [button]="true" (click)="openEditForm(product)">
+      <ion-item [button]="selectionMode()" (click)="selectionMode() && toggleSelected(product.id)">
+        @if (selectionMode()) {
+          <ion-checkbox
+            slot="start"
+            [checked]="selectedIds().has(product.id)"
+            (click)="$event.stopPropagation()"
+            (ionChange)="toggleSelected(product.id)"
+          ></ion-checkbox>
+        }
         <ion-label>
           <h2>{{ product.name }}</h2>
           <p>SKU: {{ product.sku }} · Costo: {{ product.cost }}</p>
         </ion-label>
         @if (isLowStock(product)) {
-          <ion-badge slot="end" color="danger">Stock: {{ product.stock }}</ion-badge>
+          <ion-badge color="danger">Stock: {{ product.stock }}</ion-badge>
         } @else {
-          <ion-badge slot="end" color="medium">Stock: {{ product.stock }}</ion-badge>
+          <ion-badge color="medium">Stock: {{ product.stock }}</ion-badge>
+        }
+        @if (!selectionMode()) {
+          <ion-button slot="end" fill="clear" (click)="openMovementForm(product)">
+            <ion-icon slot="icon-only" name="swap-vertical-outline"></ion-icon>
+          </ion-button>
+          <ion-button slot="end" fill="clear" (click)="openEditForm(product)">
+            <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+          </ion-button>
+          <ion-button slot="end" fill="clear" color="danger" (click)="deleteProduct(product)">
+            <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+          </ion-button>
         }
       </ion-item>
     } @empty {
@@ -91,6 +156,80 @@
           {{ saving() ? 'Guardando...' : 'Guardar' }}
         </ion-button>
       </form>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<ion-modal [isOpen]="showMovementForm()" (didDismiss)="closeMovementForm()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>Movimiento de stock — {{ movementProduct()?.name }}</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="closeMovementForm()">Cerrar</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="ion-padding">
+      @if (movementProduct(); as product) {
+        <ion-item>
+          <ion-label>
+            Stock actual: <strong>{{ product.stock }}</strong>
+            · Mínimo: {{ product.minStock }}
+          </ion-label>
+        </ion-item>
+
+        <form (ngSubmit)="registerMovement()" class="ion-margin-top">
+          <ion-item>
+            <ion-label>Tipo de movimiento</ion-label>
+            <ion-select name="movementType" [(ngModel)]="movementForm.type">
+              <ion-select-option value="in">Entrada</ion-select-option>
+              <ion-select-option value="out">Salida</ion-select-option>
+              <ion-select-option value="adjustment">Ajuste</ion-select-option>
+            </ion-select>
+          </ion-item>
+          <ion-item>
+            <ion-label position="floating">
+              {{ movementForm.type === 'adjustment' ? 'Delta (+/-)' : 'Cantidad' }}
+            </ion-label>
+            <ion-input type="number" name="movementQuantity" [(ngModel)]="movementForm.quantity" required></ion-input>
+          </ion-item>
+          <ion-item>
+            <ion-label position="floating">
+              Motivo {{ movementForm.type === 'adjustment' ? '(obligatorio)' : '(opcional)' }}
+            </ion-label>
+            <ion-input name="movementReason" [(ngModel)]="movementForm.reason"></ion-input>
+          </ion-item>
+
+          @if (movementError()) {
+            <ion-text color="danger">
+              <p>{{ movementError() }}</p>
+            </ion-text>
+          }
+
+          <ion-button expand="block" type="submit" class="ion-margin-top" [disabled]="movementSaving()">
+            {{ movementSaving() ? 'Guardando...' : 'Registrar movimiento' }}
+          </ion-button>
+        </form>
+
+        <h3 class="ion-margin-top">Historial de movimientos</h3>
+        <ion-list>
+          @for (movement of movements(); track movement.id) {
+            <ion-item>
+              <ion-label>
+                <h3>{{ movementLabel(movement.type) }} · {{ movement.quantity > 0 ? '+' : '' }}{{ movement.quantity }}</h3>
+                <p>{{ movement.reason || 'Sin motivo registrado' }}</p>
+                <ion-note>{{ movement.createdAt | date: 'short' }}</ion-note>
+              </ion-label>
+              <ion-badge slot="end" color="medium">Saldo: {{ movement.balanceAfter }}</ion-badge>
+            </ion-item>
+          } @empty {
+            <ion-item>
+              <ion-label>Sin movimientos registrados.</ion-label>
+            </ion-item>
+          }
+        </ion-list>
+      }
     </ion-content>
   </ng-template>
 </ion-modal>

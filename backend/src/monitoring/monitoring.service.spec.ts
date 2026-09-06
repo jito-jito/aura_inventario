@@ -8,16 +8,19 @@ describe('MonitoringService', () => {
   let connectionRepository: { find: jest.Mock };
   let listingsRepository: { find: jest.Mock };
   let processedItemsRepository: { find: jest.Mock };
+  let orderFetchErrorsRepository: { find: jest.Mock };
 
   beforeEach(() => {
     connectionRepository = { find: jest.fn().mockResolvedValue([]) };
     listingsRepository = { find: jest.fn().mockResolvedValue([]) };
     processedItemsRepository = { find: jest.fn().mockResolvedValue([]) };
+    orderFetchErrorsRepository = { find: jest.fn().mockResolvedValue([]) };
 
     service = new MonitoringService(
       connectionRepository as any,
       listingsRepository as any,
       processedItemsRepository as any,
+      orderFetchErrorsRepository as any,
     );
   });
 
@@ -37,9 +40,10 @@ describe('MonitoringService', () => {
     expect(processedItemsRepository.find).toHaveBeenCalledWith(
       expect.objectContaining({ where: { status: MlProcessedOrderItemStatus.ERROR } }),
     );
+    expect(orderFetchErrorsRepository.find).toHaveBeenCalled();
   });
 
-  it('combina y ordena los tres tipos de error por fecha, más reciente primero', async () => {
+  it('combina y ordena los cuatro tipos de error por fecha, más reciente primero', async () => {
     connectionRepository.find.mockResolvedValue([
       { lastError: 'Token inválido', updatedAt: new Date('2026-01-01T00:00:00Z') },
     ]);
@@ -59,12 +63,28 @@ describe('MonitoringService', () => {
         processedAt: new Date('2026-01-02T00:00:00Z'),
       },
     ]);
+    orderFetchErrorsRepository.find.mockResolvedValue([
+      {
+        mlOrderId: '456',
+        message: 'Request failed with status code 403',
+        updatedAt: new Date('2026-01-04T00:00:00Z'),
+      },
+    ]);
 
     const errors = await service.getErrors();
 
-    expect(errors.map((e) => e.type)).toEqual(['ml_listing', 'order_processing', 'ml_connection']);
-    expect(errors[0]).toMatchObject({ message: 'Timeout', context: 'Producto A (A-1) · MLA1' });
-    expect(errors[1]).toMatchObject({
+    expect(errors.map((e) => e.type)).toEqual([
+      'order_fetch',
+      'ml_listing',
+      'order_processing',
+      'ml_connection',
+    ]);
+    expect(errors[0]).toMatchObject({
+      message: 'Request failed with status code 403',
+      context: 'Orden ML 456',
+    });
+    expect(errors[1]).toMatchObject({ message: 'Timeout', context: 'Producto A (A-1) · MLA1' });
+    expect(errors[2]).toMatchObject({
       message: 'Stock insuficiente',
       context: 'Orden ML 123 · Producto B (B-1)',
     });

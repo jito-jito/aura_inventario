@@ -20,18 +20,28 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/products/products').then((m) => m.Products),
       },
       {
-        path: 'inventory',
-        loadComponent: () => import('./pages/inventory/inventory').then((m) => m.Inventory),
+        path: 'ml-integration',
+        loadComponent: () =>
+          import('./pages/ml-integration/ml-integration').then((m) => m.MlIntegration),
       },
       {
-        path: 'ml-connection',
+        path: 'ml-integration/unlinked-products',
         loadComponent: () =>
-          import('./pages/ml-connection/ml-connection').then((m) => m.MlConnection),
+          import('./pages/ml-integration/unlinked-products/unlinked-products').then(
+            (m) => m.MlIntegrationUnlinkedProducts,
+          ),
       },
       {
-        path: 'ml-listings',
+        path: 'ml-integration/unlinked-publications',
         loadComponent: () =>
-          import('./pages/ml-listings/ml-listings').then((m) => m.MlListings),
+          import('./pages/ml-integration/unlinked-publications/unlinked-publications').then(
+            (m) => m.MlIntegrationUnlinkedPublications,
+          ),
+      },
+      {
+        path: 'ml-integration/linked',
+        loadComponent: () =>
+          import('./pages/ml-integration/linked/linked').then((m) => m.MlIntegrationLinked),
       },
       {
         path: 'logs',

@@ -18,8 +18,6 @@ import { addIcons } from 'ionicons';
 import {
   gridOutline,
   cubeOutline,
-  swapVerticalOutline,
-  linkOutline,
   storefrontOutline,
   alertCircleOutline,
   logOutOutline,
@@ -59,9 +57,7 @@ export class Shell {
   readonly menuItems: MenuItem[] = [
     { label: 'Dashboard', path: '/dashboard', icon: 'grid-outline' },
     { label: 'Productos', path: '/products', icon: 'cube-outline' },
-    { label: 'Inventario', path: '/inventory', icon: 'swap-vertical-outline' },
-    { label: 'Conexión Mercado Libre', path: '/ml-connection', icon: 'link-outline' },
-    { label: 'Publicaciones vinculadas', path: '/ml-listings', icon: 'storefront-outline' },
+    { label: 'Integración con Mercado Libre', path: '/ml-integration', icon: 'storefront-outline' },
     { label: 'Logs / Errores', path: '/logs', icon: 'alert-circle-outline' },
     { label: 'Respaldos', path: '/backups', icon: 'cloud-upload-outline' },
     { label: 'Proyecciones', path: '/projections', icon: 'trending-up-outline' },
@@ -74,8 +70,6 @@ export class Shell {
     addIcons({
       gridOutline,
       cubeOutline,
-      swapVerticalOutline,
-      linkOutline,
       storefrontOutline,
       alertCircleOutline,
       logOutOutline,

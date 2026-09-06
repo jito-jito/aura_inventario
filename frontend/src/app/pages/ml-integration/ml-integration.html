@@ -1,0 +1,113 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+    </ion-buttons>
+    <ion-title>Integración con Mercado Libre</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  @if (callbackMessage(); as message) {
+    <ion-text [color]="message.type === 'success' ? 'success' : 'danger'">
+      <p>{{ message.text }}</p>
+    </ion-text>
+  }
+
+  <h2>Conexión</h2>
+  @if (loadingConnection()) {
+    <ion-spinner name="dots"></ion-spinner>
+  } @else if (connectionStatus(); as status) {
+    @if (status.connected) {
+      <ion-item>
+        <ion-label>
+          <h2>
+            Conectado <ion-badge color="success">activo</ion-badge>
+          </h2>
+          <p>Cuenta: {{ status.nickname }} (ID {{ status.mlUserId }})</p>
+          <p>Token vigente hasta: {{ status.expiresAt | date: 'medium' }}</p>
+        </ion-label>
+      </ion-item>
+      <ion-button expand="block" color="danger" (click)="disconnect()">
+        Desconectar cuenta
+      </ion-button>
+    } @else {
+      <ion-item>
+        <ion-label>
+          <h2>
+            No conectado <ion-badge color="medium">inactivo</ion-badge>
+          </h2>
+          @if (status.lastError) {
+            <p class="error-text">Último error: {{ status.lastError }}</p>
+          }
+        </ion-label>
+      </ion-item>
+      <ion-button expand="block" (click)="connect()" [disabled]="connecting()">
+        {{ connecting() ? 'Redirigiendo a Mercado Libre...' : 'Conectar con Mercado Libre' }}
+      </ion-button>
+    }
+  }
+
+  <h2 class="ion-margin-top">Catálogo vinculado</h2>
+  <ion-grid>
+    <ion-row>
+      <ion-col size="12" size-md="4">
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>Productos sin vincular</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            @if (loadingCatalog()) {
+              <ion-spinner name="dots"></ion-spinner>
+            } @else {
+              <p class="stat-number">{{ unlinkedProductsCount() }}</p>
+            }
+            <ion-button expand="block" fill="outline" routerLink="/ml-integration/unlinked-products">
+              Ver detalle
+            </ion-button>
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+
+      <ion-col size="12" size-md="4">
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>Publicaciones sin vincular</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            @if (loadingPublications()) {
+              <ion-spinner name="dots"></ion-spinner>
+            } @else if (publicationsError()) {
+              <ion-text color="danger">
+                <p>{{ publicationsError() }}</p>
+              </ion-text>
+            } @else {
+              <p class="stat-number">{{ unlinkedPublicationsCount() }}</p>
+            }
+            <ion-button expand="block" fill="outline" routerLink="/ml-integration/unlinked-publications">
+              Ver detalle
+            </ion-button>
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+
+      <ion-col size="12" size-md="4">
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>Publicaciones vinculadas</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            @if (loadingCatalog()) {
+              <ion-spinner name="dots"></ion-spinner>
+            } @else {
+              <p class="stat-number">{{ linkedCount() }}</p>
+            }
+            <ion-button expand="block" fill="outline" routerLink="/ml-integration/linked">
+              Ver detalle
+            </ion-button>
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+</ion-content>

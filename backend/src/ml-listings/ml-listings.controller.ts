@@ -1,6 +1,8 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { QueryProductsDto } from '../products/dto/query-products.dto';
 import { CreateMlListingDto } from './dto/create-ml-listing.dto';
+import { UpdateMlListingComponentsDto } from './dto/update-ml-listing-components.dto';
 import { MlListingsService } from './ml-listings.service';
 
 @UseGuards(JwtAuthGuard)
@@ -19,8 +21,18 @@ export class MlListingsController {
   }
 
   @Get('unlinked-products')
-  findUnlinkedProducts() {
-    return this.mlListingsService.findUnlinkedProducts();
+  findUnlinkedProducts(@Query() query: QueryProductsDto) {
+    return this.mlListingsService.findUnlinkedProducts(query);
+  }
+
+  @Get('search-ml')
+  searchMyListings() {
+    return this.mlListingsService.searchMyListings();
+  }
+
+  @Patch(':id')
+  updateComponents(@Param('id') id: string, @Body() dto: UpdateMlListingComponentsDto) {
+    return this.mlListingsService.updateComponents(id, dto);
   }
 
   @Delete(':id')

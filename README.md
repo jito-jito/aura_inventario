@@ -100,7 +100,7 @@ npm install   # aplica automáticamente un patch a @ionic/core (ver nota abajo)
 npm start
 ```
 
-Abre `http://localhost:4200`. Rutas disponibles: `/login`, `/dashboard`, `/products`, `/inventory`, `/ml-connection`, `/ml-listings`, `/logs`, `/backups`.
+Abre `http://localhost:4200`. Rutas disponibles: `/login`, `/dashboard`, `/products` (catálogo, stock y movimientos de inventario), `/ml-integration` (conexión OAuth + catálogo vinculado), `/logs`, `/backups`.
 
 ### Nota sobre `patch-package`
 

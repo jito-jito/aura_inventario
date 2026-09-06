@@ -20,14 +20,19 @@ export class MlAuthController {
 
   @Get('callback')
   async callback(@Query() query: MlCallbackQueryDto, @Res() res: Response) {
-    const frontendUrl = this.config.get<string>('FRONTEND_URL', 'http://localhost:4300');
+    // FRONTEND_URL puede ser una lista separada por comas (ej. localhost + IP de LAN
+    // para probar desde el celular); para el redirect siempre usamos la primera.
+    const frontendUrl = this.config
+      .get<string>('FRONTEND_URL', 'http://localhost:4200')
+      .split(',')[0]
+      .trim();
     try {
       await this.mlAuthService.handleCallback(query.code, query.state, query.error);
-      return res.redirect(`${frontendUrl}/ml-connection?status=success`);
+      return res.redirect(`${frontendUrl}/ml-integration?status=success`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error desconocido';
       return res.redirect(
-        `${frontendUrl}/ml-connection?status=error&message=${encodeURIComponent(message)}`,
+        `${frontendUrl}/ml-integration?status=error&message=${encodeURIComponent(message)}`,
       );
     }
   }

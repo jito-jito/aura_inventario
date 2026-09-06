@@ -1,5 +1,7 @@
-import { Transform } from 'class-transformer';
-import { IsBoolean, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsOptional, IsString } from 'class-validator';
+
+export type StockStatusFilter = 'critical' | 'ok';
+export type StockSortDirection = 'asc' | 'desc';
 
 export class QueryProductsDto {
   @IsOptional()
@@ -7,7 +9,10 @@ export class QueryProductsDto {
   search?: string;
 
   @IsOptional()
-  @Transform(({ value }) => value === 'true' || value === true)
-  @IsBoolean()
-  lowStock?: boolean;
+  @IsIn(['critical', 'ok'])
+  stockStatus?: StockStatusFilter;
+
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  sortByStock?: StockSortDirection;
 }

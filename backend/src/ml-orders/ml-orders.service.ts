@@ -1,12 +1,14 @@
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { isAxiosError } from 'axios';
 import { firstValueFrom } from 'rxjs';
 import { IsNull, Repository } from 'typeorm';
 import { InventoryService } from '../inventory/inventory.service';
 import { MovementType } from '../inventory/entities/inventory-movement.entity';
 import { MlAuthService } from '../mercadolibre/ml-auth.service';
 import { MlListing, MlListingSyncStatus } from '../ml-listings/entities/ml-listing.entity';
+import { MlOrderFetchError } from './entities/ml-order-fetch-error.entity';
 import {
   MlProcessedOrderItem,
   MlProcessedOrderItemStatus,
@@ -40,6 +42,8 @@ export class MlOrdersService {
     @InjectRepository(MlProcessedOrderItem)
     private readonly processedItemsRepository: Repository<MlProcessedOrderItem>,
     @InjectRepository(MlListing) private readonly listingsRepository: Repository<MlListing>,
+    @InjectRepository(MlOrderFetchError)
+    private readonly orderFetchErrorsRepository: Repository<MlOrderFetchError>,
   ) {}
 
   private async fetchOrder(orderId: string): Promise<MlOrder> {
@@ -52,8 +56,28 @@ export class MlOrdersService {
     return response.data;
   }
 
+  /** Extrae el detalle que manda Mercado Libre en el cuerpo del error (además del status HTTP). */
+  private describeFetchError(err: unknown): string {
+    if (isAxiosError(err)) {
+      const status = err.response?.status;
+      const data = err.response?.data;
+      const detail = data ? (typeof data === 'string' ? data : JSON.stringify(data)) : undefined;
+      return [status ? `HTTP ${status}` : err.message, detail].filter(Boolean).join(' — ');
+    }
+    return err instanceof Error ? err.message : 'Error desconocido';
+  }
+
   async processOrder(orderId: string): Promise<void> {
-    const order = await this.fetchOrder(orderId);
+    let order: MlOrder;
+    try {
+      order = await this.fetchOrder(orderId);
+    } catch (err) {
+      const message = this.describeFetchError(err);
+      this.logger.error(`No se pudo consultar la orden ${orderId} en Mercado Libre: ${message}`);
+      await this.orderFetchErrorsRepository.upsert({ mlOrderId: orderId, message }, ['mlOrderId']);
+      throw err;
+    }
+    await this.orderFetchErrorsRepository.delete({ mlOrderId: orderId });
 
     if (!CONSUMPTION_STATUSES.includes(order.status)) {
       this.logger.log(

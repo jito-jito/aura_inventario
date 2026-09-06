@@ -28,6 +28,7 @@ const ERROR_TYPE_LABELS: Record<IntegrationErrorType, string> = {
   ml_connection: 'Conexión Mercado Libre',
   ml_listing: 'Publicación vinculada',
   order_processing: 'Procesamiento de venta',
+  order_fetch: 'Consulta de orden a Mercado Libre',
 };
 
 @Component({
@@ -69,7 +70,7 @@ export class Dashboard implements OnInit {
     this.loading.set(true);
     try {
       const [lowStock, recentSales, errors] = await Promise.all([
-        this.productsService.findAll({ lowStock: true }),
+        this.productsService.findAll({ stockStatus: 'critical' }),
         this.mlOrdersService.findRecentlyProcessed(),
         this.monitoringService.getErrors(),
       ]);

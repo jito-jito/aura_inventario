@@ -21,6 +21,7 @@ const ERROR_TYPE_LABELS: Record<IntegrationErrorType, string> = {
   ml_connection: 'Conexión Mercado Libre',
   ml_listing: 'Publicación vinculada',
   order_processing: 'Procesamiento de venta',
+  order_fetch: 'Consulta de orden a Mercado Libre',
 };
 
 @Component({

@@ -12,6 +12,7 @@ import {
   IonButton,
   IonText,
 } from '@ionic/angular/standalone';
+import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../core/auth.service';
 
 @Component({
@@ -48,10 +49,23 @@ export class Login {
     try {
       await this.authService.login(this.email, this.password);
       await this.router.navigateByUrl('/dashboard');
-    } catch {
-      this.errorMessage.set('Email o contraseña incorrectos');
+    } catch (error) {
+      this.errorMessage.set(this.describeLoginError(error));
     } finally {
       this.loading.set(false);
     }
+  }
+
+  private describeLoginError(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      if (error.status === 0) {
+        return 'No se pudo conectar con el servidor (revisá tu red o que el backend esté corriendo)';
+      }
+      if (error.status === 401) {
+        return 'Email o contraseña incorrectos';
+      }
+      return `Error del servidor (${error.status}). Intentá de nuevo en unos segundos.`;
+    }
+    return 'Email o contraseña incorrectos';
   }
 }

@@ -10,10 +10,15 @@ export class ProductsService {
 
   constructor(private readonly http: HttpClient) {}
 
-  findAll(params?: { search?: string; lowStock?: boolean }): Promise<Product[]> {
+  findAll(params?: {
+    search?: string;
+    stockStatus?: 'critical' | 'ok';
+    sortByStock?: 'asc' | 'desc';
+  }): Promise<Product[]> {
     const query: Record<string, string> = {};
     if (params?.search) query['search'] = params.search;
-    if (params?.lowStock) query['lowStock'] = 'true';
+    if (params?.stockStatus) query['stockStatus'] = params.stockStatus;
+    if (params?.sortByStock) query['sortByStock'] = params.sortByStock;
     return firstValueFrom(this.http.get<Product[]>(this.baseUrl, { params: query }));
   }
 
@@ -27,5 +32,9 @@ export class ProductsService {
 
   update(id: string, payload: UpdateProductPayload): Promise<Product> {
     return firstValueFrom(this.http.patch<Product>(`${this.baseUrl}/${id}`, payload));
+  }
+
+  async remove(id: string): Promise<void> {
+    await firstValueFrom(this.http.delete(`${this.baseUrl}/${id}`));
   }
 }

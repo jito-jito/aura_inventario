@@ -54,13 +54,20 @@ export class ProductsService {
       ? [{ sku: ILike(`%${query.search}%`) }, { name: ILike(`%${query.search}%`) }]
       : {};
 
-    const products = await this.productsRepository.find({
+    let products = await this.productsRepository.find({
       where,
       order: { name: 'ASC' },
     });
 
-    if (query.lowStock) {
-      return products.filter((product) => product.stock <= product.minStock);
+    if (query.stockStatus === 'critical') {
+      products = products.filter((product) => product.stock <= product.minStock);
+    } else if (query.stockStatus === 'ok') {
+      products = products.filter((product) => product.stock > product.minStock);
+    }
+
+    if (query.sortByStock) {
+      const direction = query.sortByStock === 'asc' ? 1 : -1;
+      products = [...products].sort((a, b) => (a.stock - b.stock) * direction);
     }
 
     return products;
@@ -87,5 +94,10 @@ export class ProductsService {
     if (dto.minStock !== undefined) product.minStock = dto.minStock;
 
     return this.productsRepository.save(product);
+  }
+
+  async remove(id: string): Promise<void> {
+    const product = await this.findOne(id);
+    await this.productsRepository.remove(product);
   }
 }

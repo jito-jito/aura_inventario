@@ -1,0 +1,306 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/ml-integration"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Vínculos existentes</ion-title>
+  </ion-toolbar>
+  <ion-toolbar>
+    <ion-searchbar
+      placeholder="Buscar por nombre de la publicación"
+      [debounce]="300"
+      (ionInput)="onTitleFilterChange($any($event.target).value)"
+    ></ion-searchbar>
+  </ion-toolbar>
+  <ion-toolbar>
+    @if (!selectionMode()) {
+      <ion-buttons slot="end">
+        <ion-button fill="clear" (click)="toggleSelectionMode()">Selección múltiple</ion-button>
+      </ion-buttons>
+    } @else {
+      <ion-label slot="start" class="ion-padding-start">
+        {{ selectedIds().size }} seleccionado(s)
+      </ion-label>
+      <ion-buttons slot="end">
+        <ion-button fill="clear" (click)="toggleSelectAll()">
+          {{ areAllVisibleSelected() ? 'Deseleccionar todos' : 'Seleccionar todos' }}
+        </ion-button>
+        <ion-button fill="clear" [disabled]="selectedIds().size === 0" (click)="openBulkAddForm()">
+          Carga masiva
+        </ion-button>
+        <ion-button
+          fill="clear"
+          color="danger"
+          [disabled]="selectedIds().size === 0"
+          (click)="unlinkSelected()"
+        >
+          Desvincular
+        </ion-button>
+        <ion-button fill="clear" color="medium" (click)="toggleSelectionMode()">Cancelar</ion-button>
+      </ion-buttons>
+    }
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <ion-grid class="filters-grid">
+    <ion-row>
+      <ion-col size="12" size-md="4">
+        <ion-item>
+          <ion-label position="floating">Código de Mercado Libre</ion-label>
+          <ion-input
+            [ngModel]="mlIdFilter()"
+            (ngModelChange)="onMlIdFilterChange($event)"
+          ></ion-input>
+        </ion-item>
+      </ion-col>
+      <ion-col size="6" size-md="4">
+        <ion-item>
+          <ion-label position="floating">Precio mínimo</ion-label>
+          <ion-input
+            type="number"
+            [ngModel]="priceMin()"
+            (ngModelChange)="onPriceMinChange($event)"
+          ></ion-input>
+        </ion-item>
+      </ion-col>
+      <ion-col size="6" size-md="4">
+        <ion-item>
+          <ion-label position="floating">Precio máximo</ion-label>
+          <ion-input
+            type="number"
+            [ngModel]="priceMax()"
+            (ngModelChange)="onPriceMaxChange($event)"
+          ></ion-input>
+        </ion-item>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+
+  @if (loading()) {
+    <ion-spinner name="dots"></ion-spinner>
+  } @else {
+    <ion-list>
+      @for (listing of filteredListings(); track listing.id) {
+        <ion-item
+          [button]="selectionMode()"
+          (click)="selectionMode() && toggleSelected(listing.id)"
+        >
+          @if (selectionMode()) {
+            <ion-checkbox
+              slot="start"
+              [checked]="selectedIds().has(listing.id)"
+              (click)="$event.stopPropagation()"
+              (ionChange)="toggleSelected(listing.id)"
+            ></ion-checkbox>
+          }
+          @if (listing.thumbnail) {
+            <ion-thumbnail slot="start">
+              <img [src]="listing.thumbnail" [alt]="listing.title || listing.mlItemId" />
+            </ion-thumbnail>
+          }
+          <ion-label>
+            <h3>{{ listing.title || listing.mlItemId }}</h3>
+            <p>
+              Item: {{ listing.mlItemId }}
+              @if (listing.mlVariationId) {
+                · Variación: {{ listing.variationLabel || listing.mlVariationId }}
+              }
+              @if (listing.price) {
+                · ${{ listing.price }}
+              }
+            </p>
+            <p>
+              @for (component of listing.components; track component.id) {
+                <ion-chip color="tertiary">
+                  {{ component.product.name }} ({{ component.product.sku }}) ×{{ component.quantityPerUnit }}
+                </ion-chip>
+              }
+            </p>
+            @if (listing.lastSyncError) {
+              <p class="error-text">{{ listing.lastSyncError }}</p>
+            }
+            <div class="status-row ion-hide-md-up">
+              <ion-badge [color]="statusColor(listing.syncStatus)">
+                {{ statusLabel(listing.syncStatus) }}
+              </ion-badge>
+              @if (!selectionMode()) {
+                <ion-button fill="clear" (click)="openEdit(listing)">
+                  Editar
+                </ion-button>
+                <ion-button fill="clear" color="danger" (click)="unlink(listing)">
+                  Desvincular
+                </ion-button>
+              }
+            </div>
+          </ion-label>
+          @if (!selectionMode()) {
+            <div slot="end" class="status-row ion-hide-md-down">
+              <ion-badge [color]="statusColor(listing.syncStatus)">
+                {{ statusLabel(listing.syncStatus) }}
+              </ion-badge>
+              <ion-button fill="clear" (click)="openEdit(listing)">
+                Editar
+              </ion-button>
+              <ion-button fill="clear" color="danger" (click)="unlink(listing)">
+                Desvincular
+              </ion-button>
+            </div>
+          } @else {
+            <ion-badge slot="end" class="ion-hide-md-down" [color]="statusColor(listing.syncStatus)">
+              {{ statusLabel(listing.syncStatus) }}
+            </ion-badge>
+          }
+        </ion-item>
+      } @empty {
+        <ion-item>
+          <ion-label>Ningún vínculo coincide con el filtro.</ion-label>
+        </ion-item>
+      }
+    </ion-list>
+  }
+</ion-content>
+
+<ion-modal [isOpen]="showEditForm()" (didDismiss)="closeEdit()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>Editar vínculo</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="closeEdit()">Cerrar</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="ion-padding">
+      @if (editingListing(); as listing) {
+        <p>{{ listing.title || listing.mlItemId }}</p>
+
+        <h3>Componentes (productos internos)</h3>
+        @for (row of editComponents; track $index) {
+          <ion-item>
+            <ion-label>Producto</ion-label>
+            <ion-select placeholder="Seleccionar producto" [(ngModel)]="row.productId" [name]="'edit-component-product-' + $index">
+              @for (product of products(); track product.id) {
+                <ion-select-option [value]="product.id">
+                  {{ product.name }} ({{ product.sku }})
+                </ion-select-option>
+              }
+            </ion-select>
+          </ion-item>
+          <ion-item>
+            <ion-label position="floating">Cantidad por unidad vendida</ion-label>
+            <ion-input
+              type="number"
+              min="1"
+              [(ngModel)]="row.quantityPerUnit"
+              [name]="'edit-component-qty-' + $index"
+            ></ion-input>
+            @if (editComponents.length > 1) {
+              <ion-button slot="end" fill="clear" color="danger" (click)="removeEditComponentRow($index)">
+                <ion-icon name="trash-outline"></ion-icon>
+              </ion-button>
+            }
+          </ion-item>
+        }
+        <ion-button fill="outline" size="small" type="button" (click)="addEditComponentRow()">
+          <ion-icon name="add-outline" slot="start"></ion-icon>
+          Agregar componente
+        </ion-button>
+
+        @if (editError()) {
+          <ion-text color="danger">
+            <p>{{ editError() }}</p>
+          </ion-text>
+        }
+
+        <ion-button expand="block" class="ion-margin-top" [disabled]="editSaving()" (click)="saveEdit()">
+          {{ editSaving() ? 'Guardando...' : 'Guardar cambios' }}
+        </ion-button>
+      }
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<ion-modal [isOpen]="showBulkAddForm()" (didDismiss)="closeBulkAddForm()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>Agregar componente a varios vínculos</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="closeBulkAddForm()">Cerrar</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="ion-padding">
+      <p>
+        Se agrega el producto elegido como componente de cada vínculo seleccionado. Si un vínculo
+        ya tenía ese producto, se actualiza su cantidad al valor ingresado acá.
+      </p>
+
+      <ion-item>
+        <ion-label position="floating">Producto</ion-label>
+        <ion-select
+          placeholder="Seleccionar producto"
+          [ngModel]="bulkAddProductId()"
+          (ngModelChange)="bulkAddProductId.set($event)"
+        >
+          @for (product of products(); track product.id) {
+            <ion-select-option [value]="product.id">
+              {{ product.name }} ({{ product.sku }})
+            </ion-select-option>
+          }
+        </ion-select>
+      </ion-item>
+      <ion-item>
+        <ion-label position="floating">Cantidad por unidad vendida</ion-label>
+        <ion-input
+          type="number"
+          min="1"
+          [ngModel]="bulkAddQuantity()"
+          (ngModelChange)="onBulkAddQuantityChange($event)"
+        ></ion-input>
+      </ion-item>
+
+      <h3 class="ion-margin-top">Vínculos seleccionados ({{ bulkAddRows().length }})</h3>
+      <ion-list>
+        @for (row of bulkAddRows(); track row.listing.id) {
+          <ion-item lines="none">
+            @if (row.listing.thumbnail) {
+              <ion-thumbnail slot="start">
+                <img [src]="row.listing.thumbnail" [alt]="row.listing.title || row.listing.mlItemId" />
+              </ion-thumbnail>
+            }
+            <ion-label>
+              <h3>{{ row.listing.title || row.listing.mlItemId }}</h3>
+              @if (row.status === 'error') {
+                <p class="error-text">{{ row.errorMessage }}</p>
+              }
+            </ion-label>
+            @if (row.status === 'saving') {
+              <ion-spinner slot="end" name="dots"></ion-spinner>
+            } @else if (row.status === 'done') {
+              <ion-icon slot="end" name="checkmark-circle" color="success"></ion-icon>
+            } @else if (row.status === 'error') {
+              <ion-icon slot="end" name="alert-circle" color="danger"></ion-icon>
+            }
+          </ion-item>
+        }
+      </ion-list>
+
+      <ion-button
+        expand="block"
+        class="ion-margin-top"
+        [disabled]="!bulkAddCanSubmit()"
+        (click)="submitBulkAdd()"
+      >
+        @if (bulkAddSubmitting()) {
+          Cargando...
+        } @else if (bulkAddDoneCount() > 0) {
+          Reintentar pendientes ({{ bulkAddPendingCount() }})
+        } @else {
+          Agregar a {{ bulkAddRows().length }} vínculos
+        }
+      </ion-button>
+    </ion-content>
+  </ng-template>
+</ion-modal>

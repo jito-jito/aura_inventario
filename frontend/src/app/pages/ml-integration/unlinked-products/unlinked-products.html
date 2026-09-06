@@ -1,0 +1,62 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/ml-integration"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Productos sin vincular</ion-title>
+  </ion-toolbar>
+  <ion-toolbar>
+    <ion-searchbar
+      placeholder="Buscar por SKU o nombre"
+      [debounce]="300"
+      (ionInput)="onSearchChange($any($event.target).value)"
+    ></ion-searchbar>
+  </ion-toolbar>
+  <ion-toolbar>
+    <ion-segment
+      [value]="stockStatus() || 'all'"
+      (ionChange)="onStockStatusChange($any($event.detail.value))"
+    >
+      <ion-segment-button value="all">Ambos</ion-segment-button>
+      <ion-segment-button value="critical">Crítico</ion-segment-button>
+      <ion-segment-button value="ok">OK</ion-segment-button>
+    </ion-segment>
+    <ion-select
+      slot="end"
+      interface="popover"
+      placeholder="Ordenar por stock"
+      [value]="sortByStock() || null"
+      (ionChange)="onSortByStockChange($event.detail.value)"
+    >
+      <ion-select-option [value]="null">Sin ordenar</ion-select-option>
+      <ion-select-option value="asc">Stock: menor a mayor</ion-select-option>
+      <ion-select-option value="desc">Stock: mayor a menor</ion-select-option>
+    </ion-select>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  @if (loading()) {
+    <ion-spinner name="dots"></ion-spinner>
+  } @else {
+    <ion-list>
+      @for (product of unlinkedProducts(); track product.id) {
+        <ion-item>
+          <ion-label>
+            <h2>{{ product.name }}</h2>
+            <p>SKU: {{ product.sku }} · Costo: {{ product.cost }}</p>
+          </ion-label>
+          @if (isLowStock(product)) {
+            <ion-badge color="danger">Stock: {{ product.stock }}</ion-badge>
+          } @else {
+            <ion-badge color="medium">Stock: {{ product.stock }}</ion-badge>
+          }
+        </ion-item>
+      } @empty {
+        <ion-item>
+          <ion-label>Ningún producto coincide con el filtro.</ion-label>
+        </ion-item>
+      }
+    </ion-list>
+  }
+</ion-content>

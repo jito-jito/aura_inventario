@@ -6,7 +6,7 @@ import { MlListingsService } from './ml-listings.service';
 describe('MlListingsService', () => {
   let service: MlListingsService;
   let httpService: { get: jest.Mock };
-  let mlAuthService: { getConnectedMlUserId: jest.Mock };
+  let mlAuthService: { getConnectedMlUserId: jest.Mock; getValidAccessToken: jest.Mock };
   let listingsRepository: {
     findOne: jest.Mock;
     create: jest.Mock;
@@ -25,7 +25,10 @@ describe('MlListingsService', () => {
 
   beforeEach(() => {
     httpService = { get: jest.fn() };
-    mlAuthService = { getConnectedMlUserId: jest.fn().mockResolvedValue(null) };
+    mlAuthService = {
+      getConnectedMlUserId: jest.fn().mockResolvedValue(null),
+      getValidAccessToken: jest.fn().mockResolvedValue('valid-access-token'),
+    };
     listingsRepository = {
       findOne: jest.fn().mockResolvedValue(null),
       create: jest.fn((data) => data),

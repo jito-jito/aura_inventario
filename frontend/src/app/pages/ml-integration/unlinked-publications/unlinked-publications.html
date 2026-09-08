@@ -211,6 +211,9 @@
           <ion-accordion value="variation">
             <ion-item slot="header">
               <ion-label>Variación</ion-label>
+              @if (variationMissing()) {
+                <ion-badge slot="end" color="danger">Requerida</ion-badge>
+              }
             </ion-item>
             <div slot="content" class="accordion-content">
               @if (currentVariationState(); as variationState) {
@@ -240,6 +243,14 @@
                       }
                     </ion-select>
                   </ion-item>
+                  @if (variationMissing()) {
+                    <ion-text color="danger">
+                      <p>
+                        Esta publicación tiene variaciones: elegí una para que las ventas
+                        descuenten el producto correcto.
+                      </p>
+                    </ion-text>
+                  }
                 }
               }
             </div>
@@ -251,15 +262,11 @@
             </ion-item>
             <div slot="content" class="accordion-content">
               @for (row of form.components; track $index) {
-                <ion-item>
-                  <ion-label>Producto</ion-label>
-                  <ion-select placeholder="Seleccionar producto" [(ngModel)]="row.productId" [name]="'component-product-' + $index">
-                    @for (product of products(); track product.id) {
-                      <ion-select-option [value]="product.id">
-                        {{ product.name }} ({{ product.sku }})
-                      </ion-select-option>
-                    }
-                  </ion-select>
+                <ion-item button (click)="openProductPicker($index)">
+                  <ion-label>
+                    <h3>Producto</h3>
+                    <p>{{ productName(row.productId) ?? 'Seleccionar producto' }}</p>
+                  </ion-label>
                 </ion-item>
                 <ion-item>
                   <ion-label position="floating">Cantidad por unidad vendida</ion-label>
@@ -290,10 +297,46 @@
           </ion-text>
         }
 
-        <ion-button expand="block" type="submit" class="ion-margin-top" [disabled]="saving()">
+        <ion-button expand="block" type="submit" class="ion-margin-top" [disabled]="!canSubmitLink()">
           {{ saving() ? 'Vinculando...' : 'Vincular' }}
         </ion-button>
       </form>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<ion-modal [isOpen]="showProductPicker()" (didDismiss)="closeProductPicker()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>Seleccionar producto</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="closeProductPicker()">Cerrar</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+      <ion-toolbar>
+        <ion-searchbar
+          placeholder="Buscar por nombre"
+          [debounce]="200"
+          (ionInput)="onProductPickerFilterChange($any($event.target).value)"
+        ></ion-searchbar>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="ion-padding">
+      <ion-list>
+        @for (product of filteredProducts(); track product.id) {
+          <ion-item button (click)="selectProduct(product)">
+            <ion-label>
+              <h3>{{ product.name }}</h3>
+              <p>{{ product.sku }}</p>
+            </ion-label>
+          </ion-item>
+        } @empty {
+          <ion-item>
+            <ion-label>No hay productos que coincidan con la búsqueda.</ion-label>
+          </ion-item>
+        }
+      </ion-list>
     </ion-content>
   </ng-template>
 </ion-modal>
@@ -311,7 +354,9 @@
     <ion-content class="ion-padding">
       <p>
         Se va a crear <strong>1 producto por publicación</strong> y vincularlo automáticamente
-        como su único componente. El nombre y el SKU se arman como
+        como su único componente. Si la publicación tiene variaciones nativas, ese mismo
+        producto se vincula a cada variación que dejes marcada (así las ventas de cualquiera de
+        ellas descuentan el mismo stock). El nombre y el SKU se arman como
         <code>{{ '{prefijo} {nombre} - {medida}' }}</code> y
         <code>{{ '{slug}-{nombre}-{medida}' }}</code> — podés editarlos a mano si no te sirve el patrón.
       </p>
@@ -384,10 +429,45 @@
                 <ion-spinner slot="end" name="dots"></ion-spinner>
               } @else if (row.status === 'done') {
                 <ion-icon slot="end" name="checkmark-circle" color="success"></ion-icon>
-              } @else if (row.status === 'error') {
-                <ion-icon slot="end" name="alert-circle" color="danger"></ion-icon>
+              } @else {
+                @if (row.status === 'error') {
+                  <ion-icon slot="end" name="alert-circle" color="danger"></ion-icon>
+                }
+                <ion-button slot="end" fill="clear" color="danger" (click)="removeBulkRow(i)">
+                  <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+                </ion-button>
               }
             </ion-item>
+
+            @if (row.item.variations.length > 0) {
+              <ion-item lines="none">
+                <ion-label>
+                  <h3>Variaciones a vincular</h3>
+                  <p>Por defecto se vinculan todas al mismo producto; desmarcá las que no quieras.</p>
+                </ion-label>
+              </ion-item>
+              @for (variation of row.item.variations; track variation.id) {
+                <ion-item lines="none">
+                  <ion-checkbox
+                    slot="start"
+                    [checked]="row.selectedVariationIds.has(variation.id)"
+                    [disabled]="variation.alreadyLinked || row.status === 'done'"
+                    (ionChange)="toggleRowVariation(i, variation.id, $event.detail.checked)"
+                  ></ion-checkbox>
+                  <ion-label>
+                    {{ variation.label }}{{ variation.alreadyLinked ? ' (ya vinculada)' : '' }}
+                  </ion-label>
+                </ion-item>
+              }
+              @if (rowVariationMissing(row)) {
+                <ion-text color="danger">
+                  <p class="row-error">
+                    Marcá al menos una variación para vincular; si no, las ventas de esta
+                    publicación no van a descontar stock.
+                  </p>
+                </ion-text>
+              }
+            }
 
             <ion-item>
               <ion-label position="floating">Nombre</ion-label>

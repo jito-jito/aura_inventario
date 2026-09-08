@@ -99,6 +99,18 @@ describe('MlListingsService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
+    it('rechaza si la publicación tiene variaciones nativas y no se indica mlVariationId', async () => {
+      httpService.get.mockReturnValueOnce(
+        of({
+          data: { id: 'MLA1', title: 'Item', seller_id: 111, variations: [{ id: 1 }] },
+        }),
+      );
+
+      await expect(
+        service.create({ mlItemId: 'MLA1', components: [{ productId: 'product-1' }] }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
     it('rechaza si la variación indicada no existe en la publicación', async () => {
       httpService.get.mockReturnValueOnce(
         of({

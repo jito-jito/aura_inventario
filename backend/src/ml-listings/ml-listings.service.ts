@@ -164,6 +164,12 @@ export class MlListingsService {
       );
     }
 
+    if (!dto.mlVariationId && (item.variations?.length ?? 0) > 0) {
+      throw new BadRequestException(
+        `La publicación ${dto.mlItemId} tiene variaciones nativas: indicá mlVariationId para vincularla correctamente (si no, las ventas de esa variación no van a descontar stock)`,
+      );
+    }
+
     let variationLabel: string | null = null;
     if (dto.mlVariationId) {
       const variation = item.variations?.find(

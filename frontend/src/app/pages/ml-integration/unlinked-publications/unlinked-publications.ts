@@ -60,6 +60,8 @@ interface BulkRow {
   cost: number | null;
   stock: number | null;
   minStock: number | null;
+  /** Variaciones nativas marcadas para vincular al mismo producto (solo aplica si item.variations no está vacío). */
+  selectedVariationIds: Set<string>;
   status: BulkRowStatus;
   errorMessage: string | null;
 }
@@ -153,6 +155,10 @@ export class MlIntegrationUnlinkedPublications implements OnInit {
     mlVariationId: '',
     components: [{ productId: null, quantityPerUnit: 1 }],
   };
+
+  showProductPicker = signal(false);
+  productPickerFilter = signal('');
+  private activeComponentIndex: number | null = null;
 
   constructor(
     private readonly mlListingsService: MlListingsService,
@@ -293,6 +299,53 @@ export class MlIntegrationUnlinkedPublications implements OnInit {
     this.form.components.splice(index, 1);
   }
 
+  productName(productId: string | null): string | null {
+    if (!productId) return null;
+    const product = this.products().find((p) => p.id === productId);
+    return product ? `${product.name} (${product.sku})` : null;
+  }
+
+  filteredProducts(): Product[] {
+    const term = this.productPickerFilter().trim().toLowerCase();
+    if (!term) return this.products();
+    return this.products().filter((product) => product.name.toLowerCase().includes(term));
+  }
+
+  onProductPickerFilterChange(value: string | null | undefined): void {
+    this.productPickerFilter.set(value ?? '');
+  }
+
+  openProductPicker(index: number): void {
+    this.activeComponentIndex = index;
+    this.productPickerFilter.set('');
+    this.showProductPicker.set(true);
+  }
+
+  closeProductPicker(): void {
+    this.showProductPicker.set(false);
+    this.activeComponentIndex = null;
+  }
+
+  selectProduct(product: Product): void {
+    if (this.activeComponentIndex != null) {
+      this.form.components[this.activeComponentIndex].productId = product.id;
+    }
+    this.closeProductPicker();
+  }
+
+  /** true cuando la publicación cargada tiene variaciones nativas y todavía no se eligió cuál. */
+  variationMissing(): boolean {
+    const state = this.currentVariationState();
+    return state.status === 'available' && !this.form.mlVariationId.trim();
+  }
+
+  canSubmitLink(): boolean {
+    if (this.saving()) return false;
+    if (!this.form.mlItemId.trim()) return false;
+    if (!this.form.components.some((row) => row.productId)) return false;
+    return !this.variationMissing();
+  }
+
   async link(): Promise<void> {
     const components = this.form.components
       .filter((row) => row.productId)
@@ -302,6 +355,13 @@ export class MlIntegrationUnlinkedPublications implements OnInit {
       }));
 
     if (!this.form.mlItemId.trim() || components.length === 0) {
+      return;
+    }
+
+    if (this.variationMissing()) {
+      this.errorMessage.set(
+        'Esta publicación tiene variaciones: elegí una en "Variación" antes de vincular, para que las ventas de esa variación descuenten el producto correcto.',
+      );
       return;
     }
 
@@ -351,6 +411,9 @@ export class MlIntegrationUnlinkedPublications implements OnInit {
       cost: null,
       stock: null,
       minStock: null,
+      selectedVariationIds: new Set(
+        item.variations.filter((v) => !v.alreadyLinked).map((v) => v.id),
+      ),
       status: 'idle',
       errorMessage: null,
     };
@@ -368,6 +431,18 @@ export class MlIntegrationUnlinkedPublications implements OnInit {
 
   closeBulkForm(): void {
     this.showBulkForm.set(false);
+  }
+
+  removeBulkRow(index: number): void {
+    const rows = [...this.bulkRows()];
+    const [removed] = rows.splice(index, 1);
+    this.bulkRows.set(rows);
+
+    if (removed) {
+      const next = new Set(this.selectedIds());
+      next.delete(removed.item.id);
+      this.selectedIds.set(next);
+    }
   }
 
   private regenerateRow(row: BulkRow): BulkRow {
@@ -438,12 +513,29 @@ export class MlIntegrationUnlinkedPublications implements OnInit {
     this.bulkRows.set(rows);
   }
 
+  toggleRowVariation(index: number, variationId: string, checked: boolean): void {
+    const rows = [...this.bulkRows()];
+    const next = new Set(rows[index].selectedVariationIds);
+    if (checked) {
+      next.add(variationId);
+    } else {
+      next.delete(variationId);
+    }
+    rows[index] = { ...rows[index], selectedVariationIds: next };
+    this.bulkRows.set(rows);
+  }
+
+  rowVariationMissing(row: BulkRow): boolean {
+    return row.item.variations.length > 0 && row.selectedVariationIds.size === 0;
+  }
+
   bulkCanSubmit(): boolean {
     if (this.bulkSubmitting() || this.bulkRows().length === 0) return false;
     const rowsValid = this.bulkRows().every(
       (row) => row.nombre.trim() && row.medida.trim() && row.finalName.trim() && row.finalSku.trim(),
     );
     if (!rowsValid) return false;
+    if (this.bulkRows().some((row) => this.rowVariationMissing(row))) return false;
     return this.bulkUseSharedValues()
       ? this.bulkSharedCost() != null
       : this.bulkRows().every((row) => row.cost != null);
@@ -483,10 +575,22 @@ export class MlIntegrationUnlinkedPublications implements OnInit {
           stock: stock ?? undefined,
           minStock: minStock ?? undefined,
         });
-        await this.mlListingsService.create({
-          mlItemId: row.item.id,
-          components: [{ productId: product.id, quantityPerUnit: 1 }],
-        });
+
+        if (row.item.variations.length > 0) {
+          // Un vínculo por cada variación marcada, todos apuntando al mismo producto recién creado.
+          for (const variationId of row.selectedVariationIds) {
+            await this.mlListingsService.create({
+              mlItemId: row.item.id,
+              mlVariationId: variationId,
+              components: [{ productId: product.id, quantityPerUnit: 1 }],
+            });
+          }
+        } else {
+          await this.mlListingsService.create({
+            mlItemId: row.item.id,
+            components: [{ productId: product.id, quantityPerUnit: 1 }],
+          });
+        }
         this.updateRow(i, { status: 'done', errorMessage: null });
       } catch (error) {
         this.updateRow(i, {

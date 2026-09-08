@@ -22,6 +22,9 @@
         {{ selectedIds().size }} seleccionada(s)
       </ion-label>
       <ion-buttons slot="end">
+        <ion-button fill="clear" (click)="toggleSelectAll()">
+          {{ areAllVisibleSelected() ? 'Deseleccionar todos' : 'Seleccionar todos' }}
+        </ion-button>
         <ion-button fill="clear" [disabled]="selectedIds().size === 0" (click)="openBulkForm()">
           Carga masiva
         </ion-button>

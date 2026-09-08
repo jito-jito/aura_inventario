@@ -400,6 +400,22 @@ export class MlIntegrationUnlinkedPublications implements OnInit {
     this.selectedIds.set(next);
   }
 
+  areAllVisibleSelected(): boolean {
+    const visible = this.unlinkedMlPublications();
+    return visible.length > 0 && visible.every((item) => this.selectedIds().has(item.id));
+  }
+
+  toggleSelectAll(): void {
+    const visible = this.unlinkedMlPublications();
+    const next = new Set(this.selectedIds());
+    if (this.areAllVisibleSelected()) {
+      visible.forEach((item) => next.delete(item.id));
+    } else {
+      visible.forEach((item) => next.add(item.id));
+    }
+    this.selectedIds.set(next);
+  }
+
   private buildBulkRow(item: MlSearchItem): BulkRow {
     const medida = extractMedida(item.title);
     return {
@@ -420,7 +436,9 @@ export class MlIntegrationUnlinkedPublications implements OnInit {
   }
 
   openBulkForm(): void {
-    const items = this.unlinkedMlPublications().filter((item) => this.selectedIds().has(item.id));
+    const items = this.myListings().filter(
+      (item) => !item.alreadyLinked && this.selectedIds().has(item.id),
+    );
     this.bulkRows.set(items.map((item) => this.buildBulkRow(item)));
     this.bulkSharedCost.set(null);
     this.bulkSharedStock.set(0);

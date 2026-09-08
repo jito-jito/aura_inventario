@@ -396,6 +396,11 @@
             (ngModelChange)="onSharedCostChange($event)"
           ></ion-input>
         </ion-item>
+        @if (bulkSharedCost() == null) {
+          <ion-text color="danger">
+            <p class="field-missing">Falta el costo</p>
+          </ion-text>
+        }
         <ion-item>
           <ion-label position="floating">Stock inicial</ion-label>
           <ion-input
@@ -480,6 +485,11 @@
                 [disabled]="row.status === 'done'"
               ></ion-input>
             </ion-item>
+            @if (rowNombreMissing(row) && row.status !== 'done') {
+              <ion-text color="danger">
+                <p class="field-missing">Falta el nombre</p>
+              </ion-text>
+            }
             <ion-item>
               <ion-label position="floating">Medida</ion-label>
               <ion-input
@@ -488,6 +498,11 @@
                 [disabled]="row.status === 'done'"
               ></ion-input>
             </ion-item>
+            @if (rowMedidaMissing(row) && row.status !== 'done') {
+              <ion-text color="danger">
+                <p class="field-missing">Falta la medida</p>
+              </ion-text>
+            }
             <ion-item>
               <ion-label position="floating">Nombre final</ion-label>
               <ion-input
@@ -496,6 +511,11 @@
                 [disabled]="row.status === 'done'"
               ></ion-input>
             </ion-item>
+            @if (rowFinalNameMissing(row) && row.status !== 'done') {
+              <ion-text color="danger">
+                <p class="field-missing">Falta el nombre final</p>
+              </ion-text>
+            }
             <ion-item>
               <ion-label position="floating">SKU final</ion-label>
               <ion-input
@@ -504,6 +524,11 @@
                 [disabled]="row.status === 'done'"
               ></ion-input>
             </ion-item>
+            @if (rowFinalSkuMissing(row) && row.status !== 'done') {
+              <ion-text color="danger">
+                <p class="field-missing">Falta el SKU final</p>
+              </ion-text>
+            }
             @if (rowSkuIsDuplicate(row)) {
               <ion-text color="medium">
                 <p class="row-hint">
@@ -524,6 +549,11 @@
                   [disabled]="row.status === 'done'"
                 ></ion-input>
               </ion-item>
+              @if (rowCostMissing(row) && row.status !== 'done') {
+                <ion-text color="danger">
+                  <p class="field-missing">Falta el costo</p>
+                </ion-text>
+              }
               <ion-item>
                 <ion-label position="floating">Stock inicial</ion-label>
                 <ion-input
@@ -552,6 +582,14 @@
           </div>
         }
       </ion-list>
+
+      @if (!bulkCanSubmit() && !bulkSubmitting() && bulkBlockedReasons().length > 0) {
+        <ion-text color="danger">
+          @for (reason of bulkBlockedReasons(); track reason) {
+            <p class="ion-no-margin">{{ reason }}</p>
+          }
+        </ion-text>
+      }
 
       <ion-button
         expand="block"

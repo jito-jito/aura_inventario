@@ -504,6 +504,15 @@
                 [disabled]="row.status === 'done'"
               ></ion-input>
             </ion-item>
+            @if (rowSkuIsDuplicate(row)) {
+              <ion-text color="medium">
+                <p class="row-hint">
+                  Este SKU ya existe o se repite en otra fila: no se va a crear un producto
+                  duplicado, todas las publicaciones con este SKU quedan vinculadas al mismo
+                  producto.
+                </p>
+              </ion-text>
+            }
 
             @if (!bulkUseSharedValues()) {
               <ion-item>

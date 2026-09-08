@@ -572,9 +572,31 @@ export class MlIntegrationUnlinkedPublications implements OnInit {
     return Array.isArray(message) ? message.join(', ') : message;
   }
 
+  /**
+   * SKU (ya trimeado) -> id de producto, precargado con los productos existentes.
+   * Se completa a medida que se crean productos nuevos durante el envío, así dos filas
+   * del mismo lote que generan el mismo SKU reutilizan el producto recién creado por la primera.
+   */
+  private buildSkuToProductIdMap(): Map<string, string> {
+    const map = new Map<string, string>();
+    for (const product of this.products()) {
+      map.set(product.sku.trim(), product.id);
+    }
+    return map;
+  }
+
+  /** true si el SKU de esta fila ya existe como producto o se repite en otra fila del lote. */
+  rowSkuIsDuplicate(row: BulkRow): boolean {
+    const sku = row.finalSku.trim();
+    if (!sku) return false;
+    if (this.products().some((product) => product.sku.trim() === sku)) return true;
+    return this.bulkRows().some((other) => other !== row && other.finalSku.trim() === sku);
+  }
+
   async submitBulk(): Promise<void> {
     this.bulkSubmitting.set(true);
     const rows = this.bulkRows();
+    const skuToProductId = this.buildSkuToProductIdMap();
 
     for (let i = 0; i < rows.length; i++) {
       if (rows[i].status === 'done') continue;
@@ -582,31 +604,38 @@ export class MlIntegrationUnlinkedPublications implements OnInit {
       this.updateRow(i, { status: 'saving', errorMessage: null });
       const row = this.bulkRows()[i];
       try {
-        const cost = this.bulkUseSharedValues() ? this.bulkSharedCost() : row.cost;
-        const stock = this.bulkUseSharedValues() ? this.bulkSharedStock() : row.stock;
-        const minStock = this.bulkUseSharedValues() ? this.bulkSharedMinStock() : row.minStock;
+        const sku = row.finalSku.trim();
+        let productId = skuToProductId.get(sku);
 
-        const product = await this.productsService.create({
-          sku: row.finalSku,
-          name: row.finalName,
-          cost: cost ?? 0,
-          stock: stock ?? undefined,
-          minStock: minStock ?? undefined,
-        });
+        if (!productId) {
+          const cost = this.bulkUseSharedValues() ? this.bulkSharedCost() : row.cost;
+          const stock = this.bulkUseSharedValues() ? this.bulkSharedStock() : row.stock;
+          const minStock = this.bulkUseSharedValues() ? this.bulkSharedMinStock() : row.minStock;
+
+          const product = await this.productsService.create({
+            sku,
+            name: row.finalName,
+            cost: cost ?? 0,
+            stock: stock ?? undefined,
+            minStock: minStock ?? undefined,
+          });
+          productId = product.id;
+          skuToProductId.set(sku, productId);
+        }
 
         if (row.item.variations.length > 0) {
-          // Un vínculo por cada variación marcada, todos apuntando al mismo producto recién creado.
+          // Un vínculo por cada variación marcada, todos apuntando al mismo producto (nuevo o reutilizado).
           for (const variationId of row.selectedVariationIds) {
             await this.mlListingsService.create({
               mlItemId: row.item.id,
               mlVariationId: variationId,
-              components: [{ productId: product.id, quantityPerUnit: 1 }],
+              components: [{ productId, quantityPerUnit: 1 }],
             });
           }
         } else {
           await this.mlListingsService.create({
             mlItemId: row.item.id,
-            components: [{ productId: product.id, quantityPerUnit: 1 }],
+            components: [{ productId, quantityPerUnit: 1 }],
           });
         }
         this.updateRow(i, { status: 'done', errorMessage: null });

@@ -8,6 +8,7 @@ import { InventoryService } from '../inventory/inventory.service';
 import { MovementType } from '../inventory/entities/inventory-movement.entity';
 import { MlAuthService } from '../mercadolibre/ml-auth.service';
 import { MlListing, MlListingSyncStatus } from '../ml-listings/entities/ml-listing.entity';
+import { QueryProcessedOrdersDto } from './dto/query-processed-orders.dto';
 import { MlOrderFetchError } from './entities/ml-order-fetch-error.entity';
 import {
   MlProcessedOrderItem,
@@ -178,11 +179,32 @@ export class MlOrdersService {
     await this.listingsRepository.save(listing);
   }
 
-  findRecentlyProcessed(limit = 50): Promise<MlProcessedOrderItem[]> {
-    return this.processedItemsRepository.find({
-      relations: { product: true },
-      order: { processedAt: 'DESC' },
-      take: limit,
-    });
+  findProcessed(filters: QueryProcessedOrdersDto = {}): Promise<MlProcessedOrderItem[]> {
+    const qb = this.processedItemsRepository
+      .createQueryBuilder('item')
+      .leftJoinAndSelect('item.product', 'product')
+      .orderBy('item.processedAt', 'DESC');
+
+    if (filters.dateFrom) {
+      qb.andWhere('item.processedAt >= :dateFrom', {
+        dateFrom: new Date(`${filters.dateFrom}T00:00:00.000Z`),
+      });
+    }
+    if (filters.dateTo) {
+      qb.andWhere('item.processedAt <= :dateTo', {
+        dateTo: new Date(`${filters.dateTo}T23:59:59.999Z`),
+      });
+    }
+    if (filters.status) {
+      qb.andWhere('item.status = :status', { status: filters.status });
+    }
+    if (filters.search) {
+      qb.andWhere(
+        '(product.name ILIKE :search OR product.sku ILIKE :search OR item.mlOrderId ILIKE :search OR item.mlItemId ILIKE :search)',
+        { search: `%${filters.search}%` },
+      );
+    }
+
+    return qb.getMany();
   }
 }

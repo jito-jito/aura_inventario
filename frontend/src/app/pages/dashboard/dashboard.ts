@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import {
   IonHeader,
   IonToolbar,
@@ -16,6 +17,7 @@ import {
   IonBadge,
   IonSpinner,
   IonNote,
+  IonButton,
 } from '@ionic/angular/standalone';
 import { ProductsService } from '../../core/products.service';
 import { MlOrdersService } from '../../core/ml-orders.service';
@@ -23,6 +25,15 @@ import { MonitoringService } from '../../core/monitoring.service';
 import { Product } from '../../core/models/product.model';
 import { MlProcessedOrderItem } from '../../core/models/ml-processed-order-item.model';
 import { IntegrationErrorItem, IntegrationErrorType } from '../../core/models/integration-error.model';
+
+const LOW_STOCK_PREVIEW_LIMIT = 3;
+
+function todayIsoDate(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+}
 
 const ERROR_TYPE_LABELS: Record<IntegrationErrorType, string> = {
   ml_connection: 'Conexión Mercado Libre',
@@ -35,6 +46,7 @@ const ERROR_TYPE_LABELS: Record<IntegrationErrorType, string> = {
   selector: 'app-dashboard',
   imports: [
     CommonModule,
+    RouterLink,
     IonHeader,
     IonToolbar,
     IonTitle,
@@ -50,6 +62,7 @@ const ERROR_TYPE_LABELS: Record<IntegrationErrorType, string> = {
     IonBadge,
     IonSpinner,
     IonNote,
+    IonButton,
   ],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
@@ -57,7 +70,8 @@ const ERROR_TYPE_LABELS: Record<IntegrationErrorType, string> = {
 export class Dashboard implements OnInit {
   loading = signal(true);
   lowStockProducts = signal<Product[]>([]);
-  recentSales = signal<MlProcessedOrderItem[]>([]);
+  lowStockPreview = computed(() => this.lowStockProducts().slice(0, LOW_STOCK_PREVIEW_LIMIT));
+  todaySales = signal<MlProcessedOrderItem[]>([]);
   errors = signal<IntegrationErrorItem[]>([]);
 
   constructor(
@@ -69,13 +83,14 @@ export class Dashboard implements OnInit {
   async ngOnInit(): Promise<void> {
     this.loading.set(true);
     try {
-      const [lowStock, recentSales, errors] = await Promise.all([
+      const today = todayIsoDate();
+      const [lowStock, todaySales, errors] = await Promise.all([
         this.productsService.findAll({ stockStatus: 'critical' }),
-        this.mlOrdersService.findRecentlyProcessed(),
+        this.mlOrdersService.findProcessed({ dateFrom: today, dateTo: today }),
         this.monitoringService.getErrors(),
       ]);
       this.lowStockProducts.set(lowStock);
-      this.recentSales.set(recentSales);
+      this.todaySales.set(todaySales);
       this.errors.set(errors);
     } finally {
       this.loading.set(false);

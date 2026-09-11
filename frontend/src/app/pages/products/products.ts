@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   IonHeader,
@@ -29,7 +29,15 @@ import {
   AlertController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { addOutline, createOutline, swapVerticalOutline, trashOutline } from 'ionicons/icons';
+import {
+  addOutline,
+  chevronDownOutline,
+  chevronExpandOutline,
+  chevronUpOutline,
+  createOutline,
+  swapVerticalOutline,
+  trashOutline,
+} from 'ionicons/icons';
 import { ProductsService } from '../../core/products.service';
 import { InventoryService } from '../../core/inventory.service';
 import { Product } from '../../core/models/product.model';
@@ -39,6 +47,18 @@ const MOVEMENT_LABELS: Record<MovementType, string> = {
   in: 'Entrada',
   out: 'Salida',
   adjustment: 'Ajuste',
+};
+
+type SortColumn = 'sku' | 'name' | 'description' | 'cost' | 'stock' | 'minStock';
+type SortDirection = 'asc' | 'desc';
+
+const COLUMN_COMPARATORS: Record<SortColumn, (product: Product) => string | number> = {
+  sku: (product) => product.sku.toLowerCase(),
+  name: (product) => product.name.toLowerCase(),
+  description: (product) => (product.description ?? '').toLowerCase(),
+  cost: (product) => Number(product.cost),
+  stock: (product) => product.stock,
+  minStock: (product) => product.minStock,
 };
 
 @Component({
@@ -87,6 +107,23 @@ export class Products implements OnInit {
   selectionMode = signal(false);
   selectedIds = signal<Set<string>>(new Set());
 
+  columnSort = signal<{ column: SortColumn; direction: SortDirection } | null>(null);
+  sortedProducts = computed(() => {
+    const sort = this.columnSort();
+    const list = this.products();
+    if (!sort) return list;
+
+    const getValue = COLUMN_COMPARATORS[sort.column];
+    const direction = sort.direction === 'asc' ? 1 : -1;
+    return [...list].sort((a, b) => {
+      const valueA = getValue(a);
+      const valueB = getValue(b);
+      if (valueA < valueB) return -1 * direction;
+      if (valueA > valueB) return 1 * direction;
+      return 0;
+    });
+  });
+
   form = { sku: '', name: '', description: '', cost: 0, stock: 0, minStock: 5 };
 
   showMovementForm = signal(false);
@@ -105,7 +142,15 @@ export class Products implements OnInit {
     private readonly inventoryService: InventoryService,
     private readonly alertController: AlertController,
   ) {
-    addIcons({ addOutline, createOutline, swapVerticalOutline, trashOutline });
+    addIcons({
+      addOutline,
+      chevronDownOutline,
+      chevronExpandOutline,
+      chevronUpOutline,
+      createOutline,
+      swapVerticalOutline,
+      trashOutline,
+    });
   }
 
   ngOnInit(): void {
@@ -199,6 +244,23 @@ export class Products implements OnInit {
 
   isLowStock(product: Product): boolean {
     return product.stock <= product.minStock;
+  }
+
+  toggleColumnSort(column: SortColumn): void {
+    const current = this.columnSort();
+    if (current?.column !== column) {
+      this.columnSort.set({ column, direction: 'asc' });
+    } else if (current.direction === 'asc') {
+      this.columnSort.set({ column, direction: 'desc' });
+    } else {
+      this.columnSort.set(null);
+    }
+  }
+
+  columnSortIcon(column: SortColumn): string {
+    const current = this.columnSort();
+    if (current?.column !== column) return 'chevron-expand-outline';
+    return current.direction === 'asc' ? 'chevron-up-outline' : 'chevron-down-outline';
   }
 
   toggleSelectionMode(): void {

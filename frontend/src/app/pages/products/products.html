@@ -61,44 +61,109 @@
 </ion-header>
 
 <ion-content class="ion-padding">
-  <ion-list>
-    @for (product of products(); track product.id) {
-      <ion-item [button]="selectionMode()" (click)="selectionMode() && toggleSelected(product.id)">
-        @if (selectionMode()) {
-          <ion-checkbox
-            slot="start"
-            [checked]="selectedIds().has(product.id)"
-            (click)="$event.stopPropagation()"
-            (ionChange)="toggleSelected(product.id)"
-          ></ion-checkbox>
+  <div class="products-table-wrapper">
+    <table class="products-table">
+      <thead>
+        <tr>
+          @if (selectionMode()) {
+            <th class="select-col">
+              <ion-checkbox
+                [checked]="areAllVisibleSelected()"
+                (ionChange)="toggleSelectAll()"
+              ></ion-checkbox>
+            </th>
+          }
+          <th>
+            <button class="sort-button" type="button" (click)="toggleColumnSort('sku')">
+              SKU
+              <ion-icon [name]="columnSortIcon('sku')"></ion-icon>
+            </button>
+          </th>
+          <th>
+            <button class="sort-button" type="button" (click)="toggleColumnSort('name')">
+              Nombre
+              <ion-icon [name]="columnSortIcon('name')"></ion-icon>
+            </button>
+          </th>
+          <th>
+            <button class="sort-button" type="button" (click)="toggleColumnSort('description')">
+              Descripción
+              <ion-icon [name]="columnSortIcon('description')"></ion-icon>
+            </button>
+          </th>
+          <th class="numeric">
+            <button class="sort-button" type="button" (click)="toggleColumnSort('cost')">
+              Costo
+              <ion-icon [name]="columnSortIcon('cost')"></ion-icon>
+            </button>
+          </th>
+          <th class="numeric">
+            <button class="sort-button" type="button" (click)="toggleColumnSort('stock')">
+              Stock
+              <ion-icon [name]="columnSortIcon('stock')"></ion-icon>
+            </button>
+          </th>
+          <th class="numeric">
+            <button class="sort-button" type="button" (click)="toggleColumnSort('minStock')">
+              Mínimo
+              <ion-icon [name]="columnSortIcon('minStock')"></ion-icon>
+            </button>
+          </th>
+          @if (!selectionMode()) {
+            <th class="actions-col">Acciones</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (product of sortedProducts(); track product.id) {
+          <tr
+            [class.selectable]="selectionMode()"
+            [class.low-stock]="isLowStock(product)"
+            (click)="selectionMode() && toggleSelected(product.id)"
+          >
+            @if (selectionMode()) {
+              <td class="select-col">
+                <ion-checkbox
+                  [checked]="selectedIds().has(product.id)"
+                  (click)="$event.stopPropagation()"
+                  (ionChange)="toggleSelected(product.id)"
+                ></ion-checkbox>
+              </td>
+            }
+            <td>{{ product.sku }}</td>
+            <td>{{ product.name }}</td>
+            <td>{{ product.description || '—' }}</td>
+            <td class="numeric">{{ product.cost }}</td>
+            <td class="numeric">
+              @if (isLowStock(product)) {
+                <ion-badge color="danger">{{ product.stock }}</ion-badge>
+              } @else {
+                <ion-badge color="medium">{{ product.stock }}</ion-badge>
+              }
+            </td>
+            <td class="numeric">{{ product.minStock }}</td>
+            @if (!selectionMode()) {
+              <td class="actions-col">
+                <ion-button fill="clear" size="small" (click)="openMovementForm(product)">
+                  <ion-icon slot="icon-only" name="swap-vertical-outline"></ion-icon>
+                </ion-button>
+                <ion-button fill="clear" size="small" (click)="openEditForm(product)">
+                  <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+                </ion-button>
+                <ion-button fill="clear" size="small" color="danger" (click)="deleteProduct(product)">
+                  <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+                </ion-button>
+              </td>
+            }
+          </tr>
+        } @empty {
+          <tr>
+            <td [attr.colspan]="selectionMode() ? 7 : 7">No hay productos todavía.</td>
+          </tr>
         }
-        <ion-label>
-          <h2>{{ product.name }}</h2>
-          <p>SKU: {{ product.sku }} · Costo: {{ product.cost }}</p>
-        </ion-label>
-        @if (isLowStock(product)) {
-          <ion-badge color="danger">Stock: {{ product.stock }}</ion-badge>
-        } @else {
-          <ion-badge color="medium">Stock: {{ product.stock }}</ion-badge>
-        }
-        @if (!selectionMode()) {
-          <ion-button slot="end" fill="clear" (click)="openMovementForm(product)">
-            <ion-icon slot="icon-only" name="swap-vertical-outline"></ion-icon>
-          </ion-button>
-          <ion-button slot="end" fill="clear" (click)="openEditForm(product)">
-            <ion-icon slot="icon-only" name="create-outline"></ion-icon>
-          </ion-button>
-          <ion-button slot="end" fill="clear" color="danger" (click)="deleteProduct(product)">
-            <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
-          </ion-button>
-        }
-      </ion-item>
-    } @empty {
-      <ion-item>
-        <ion-label>No hay productos todavía.</ion-label>
-      </ion-item>
-    }
-  </ion-list>
+      </tbody>
+    </table>
+  </div>
 
   <ion-fab vertical="bottom" horizontal="end" slot="fixed">
     <ion-fab-button (click)="openCreateForm()">

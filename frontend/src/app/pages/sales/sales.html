@@ -1,0 +1,111 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+    </ion-buttons>
+    <ion-title>Ventas</ion-title>
+  </ion-toolbar>
+  <ion-toolbar>
+    <ion-searchbar
+      placeholder="Buscar por producto, SKU u orden ML"
+      [debounce]="300"
+      (ionInput)="onSearchChange($any($event.target).value)"
+    ></ion-searchbar>
+  </ion-toolbar>
+  <ion-toolbar>
+    <ion-item lines="none">
+      <ion-label position="stacked">Desde</ion-label>
+      <ion-input
+        type="date"
+        [value]="dateFrom()"
+        (ionChange)="onDateFromChange($event.detail.value)"
+      ></ion-input>
+    </ion-item>
+    <ion-item lines="none">
+      <ion-label position="stacked">Hasta</ion-label>
+      <ion-input
+        type="date"
+        [value]="dateTo()"
+        (ionChange)="onDateToChange($event.detail.value)"
+      ></ion-input>
+    </ion-item>
+    <ion-select
+      slot="end"
+      interface="popover"
+      placeholder="Estado"
+      [value]="status() || null"
+      (ionChange)="onStatusChange($event.detail.value)"
+    >
+      <ion-select-option [value]="null">Todos</ion-select-option>
+      <ion-select-option value="processed">Procesada</ion-select-option>
+      <ion-select-option value="error">Error</ion-select-option>
+    </ion-select>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  @if (loading()) {
+    <ion-spinner name="dots"></ion-spinner>
+  } @else {
+    <div class="sales-table-wrapper">
+      <table class="sales-table">
+        <thead>
+          <tr>
+            <th>
+              <button class="sort-button" type="button" (click)="toggleColumnSort('processedAt')">
+                Fecha
+                <ion-icon [name]="columnSortIcon('processedAt')"></ion-icon>
+              </button>
+            </th>
+            <th>
+              <button class="sort-button" type="button" (click)="toggleColumnSort('product')">
+                Producto
+                <ion-icon [name]="columnSortIcon('product')"></ion-icon>
+              </button>
+            </th>
+            <th>
+              <button class="sort-button" type="button" (click)="toggleColumnSort('mlOrderId')">
+                Orden ML
+                <ion-icon [name]="columnSortIcon('mlOrderId')"></ion-icon>
+              </button>
+            </th>
+            <th class="numeric">
+              <button class="sort-button" type="button" (click)="toggleColumnSort('quantity')">
+                Cantidad
+                <ion-icon [name]="columnSortIcon('quantity')"></ion-icon>
+              </button>
+            </th>
+            <th>
+              <button class="sort-button" type="button" (click)="toggleColumnSort('status')">
+                Estado
+                <ion-icon [name]="columnSortIcon('status')"></ion-icon>
+              </button>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (sale of sortedSales(); track sale.id) {
+            <tr [class.error-row]="sale.status === 'error'">
+              <td>{{ sale.processedAt | date: 'short' }}</td>
+              <td>{{ sale.product.name }} ({{ sale.product.sku }})</td>
+              <td>{{ sale.mlOrderId }}</td>
+              <td class="numeric">{{ sale.quantity }}</td>
+              <td>
+                <ion-badge [color]="sale.status === 'processed' ? 'success' : 'danger'">
+                  {{ statusLabel(sale.status) }}
+                </ion-badge>
+                @if (sale.errorMessage) {
+                  <p class="error-text">{{ sale.errorMessage }}</p>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5">No hay ventas para los filtros seleccionados.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</ion-content>

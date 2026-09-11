@@ -86,14 +86,15 @@ describe('InventoryService', () => {
     expect(movement.balanceAfter).toBe(6);
   });
 
-  it('rechaza una salida que dejaría stock negativo', async () => {
-    await expect(
-      service.registerMovement({
-        productId: 'product-1',
-        type: MovementType.OUT,
-        quantity: 999,
-      }),
-    ).rejects.toThrow(BadRequestException);
+  it('permite una salida que deja stock negativo', async () => {
+    const movement = await service.registerMovement({
+      productId: 'product-1',
+      type: MovementType.OUT,
+      quantity: 999,
+    });
+
+    expect(product.stock).toBe(-989);
+    expect(movement.balanceAfter).toBe(-989);
   });
 
   it('aplica el delta con signo en un ajuste (ADJUSTMENT)', async () => {

@@ -1,12 +1,8 @@
-form {
-  max-width: 480px;
-}
-
-.products-table-wrapper {
+.sales-table-wrapper {
   overflow-x: auto;
 }
 
-.products-table {
+.sales-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
@@ -21,18 +17,6 @@ form {
   th.numeric,
   td.numeric {
     text-align: right;
-  }
-
-  th.select-col,
-  td.select-col {
-    width: 1%;
-    white-space: nowrap;
-  }
-
-  th.actions-col,
-  td.actions-col {
-    text-align: right;
-    white-space: nowrap;
   }
 
   thead th {
@@ -71,15 +55,14 @@ form {
     border-bottom: 1px solid rgba(11, 11, 11, 0.06);
   }
 
-  tbody tr.selectable {
-    cursor: pointer;
-  }
-
-  tbody tr.selectable:hover {
-    background: var(--ion-color-light);
-  }
-
-  tbody tr.low-stock {
+  tbody tr.error-row {
     background: rgba(var(--ion-color-danger-rgb), 0.06);
+  }
+
+  .error-text {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: var(--ion-color-danger);
+    white-space: normal;
   }
 }

@@ -36,10 +36,10 @@ export class ProductsService {
       }),
     );
 
-    if (dto.stock && dto.stock > 0) {
+    if (dto.stock) {
       await this.inventoryService.registerMovement({
         productId: product.id,
-        type: MovementType.IN,
+        type: dto.stock > 0 ? MovementType.IN : MovementType.ADJUSTMENT,
         quantity: dto.stock,
         reason: 'Stock inicial',
       });

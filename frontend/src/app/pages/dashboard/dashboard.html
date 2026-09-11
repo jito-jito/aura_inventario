@@ -16,7 +16,7 @@
         <ion-col size="12" size-md="4">
           <h2>Stock bajo</h2>
           <ion-list>
-            @for (product of lowStockProducts(); track product.id) {
+            @for (product of lowStockPreview(); track product.id) {
               <ion-item>
                 <ion-label>
                   <h3>{{ product.name }}</h3>
@@ -32,12 +32,15 @@
               </ion-item>
             }
           </ion-list>
+          <ion-button expand="block" fill="outline" routerLink="/products">
+            Ver detalle
+          </ion-button>
         </ion-col>
 
         <ion-col size="12" size-md="4">
-          <h2>Ventas recientes</h2>
+          <h2>Ventas del día</h2>
           <ion-list>
-            @for (sale of recentSales(); track sale.id) {
+            @for (sale of todaySales(); track sale.id) {
               <ion-item>
                 <ion-label>
                   <h3>{{ sale.product.name }} ({{ sale.product.sku }})</h3>
@@ -50,10 +53,13 @@
               </ion-item>
             } @empty {
               <ion-item>
-                <ion-label>Todavía no se procesaron ventas.</ion-label>
+                <ion-label>Todavía no se registraron ventas hoy.</ion-label>
               </ion-item>
             }
           </ion-list>
+          <ion-button expand="block" fill="outline" routerLink="/ventas">
+            Ver detalle
+          </ion-button>
         </ion-col>
 
         <ion-col size="12" size-md="4">

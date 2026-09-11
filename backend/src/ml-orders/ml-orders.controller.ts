@@ -1,5 +1,6 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { QueryProcessedOrdersDto } from './dto/query-processed-orders.dto';
 import { MlOrdersService } from './ml-orders.service';
 
 @UseGuards(JwtAuthGuard)
@@ -8,7 +9,7 @@ export class MlOrdersController {
   constructor(private readonly mlOrdersService: MlOrdersService) {}
 
   @Get('processed')
-  findRecentlyProcessed() {
-    return this.mlOrdersService.findRecentlyProcessed();
+  findProcessed(@Query() query: QueryProcessedOrdersDto) {
+    return this.mlOrdersService.findProcessed(query);
   }
 }

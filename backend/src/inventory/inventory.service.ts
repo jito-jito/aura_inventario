@@ -50,12 +50,6 @@ export class InventoryService {
       }
 
       const newStock = product.stock + delta;
-      if (newStock < 0) {
-        throw new BadRequestException(
-          `Stock insuficiente: disponible ${product.stock}, se intentó descontar ${-delta}`,
-        );
-      }
-
       product.stock = newStock;
       await productRepo.save(product);
 

@@ -23,6 +23,7 @@ import {
   logOutOutline,
   cloudUploadOutline,
   trendingUpOutline,
+  receiptOutline,
 } from 'ionicons/icons';
 import { AuthService } from '../core/auth.service';
 
@@ -57,6 +58,7 @@ export class Shell {
   readonly menuItems: MenuItem[] = [
     { label: 'Dashboard', path: '/dashboard', icon: 'grid-outline' },
     { label: 'Productos', path: '/products', icon: 'cube-outline' },
+    { label: 'Ventas', path: '/ventas', icon: 'receipt-outline' },
     { label: 'Integración con Mercado Libre', path: '/ml-integration', icon: 'storefront-outline' },
     { label: 'Logs / Errores', path: '/logs', icon: 'alert-circle-outline' },
     { label: 'Respaldos', path: '/backups', icon: 'cloud-upload-outline' },
@@ -75,6 +77,7 @@ export class Shell {
       logOutOutline,
       cloudUploadOutline,
       trendingUpOutline,
+      receiptOutline,
     });
   }
 

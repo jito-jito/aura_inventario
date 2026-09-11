@@ -20,6 +20,10 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/products/products').then((m) => m.Products),
       },
       {
+        path: 'ventas',
+        loadComponent: () => import('./pages/sales/sales').then((m) => m.Sales),
+      },
+      {
         path: 'ml-integration',
         loadComponent: () =>
           import('./pages/ml-integration/ml-integration').then((m) => m.MlIntegration),

@@ -17,6 +17,8 @@ import {
   IonBadge,
   IonIcon,
   IonSpinner,
+  IonButton,
+  IonText,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { chevronDownOutline, chevronExpandOutline, chevronUpOutline } from 'ionicons/icons';
@@ -35,9 +37,21 @@ const COLUMN_COMPARATORS: Record<SortColumn, (sale: MlProcessedOrderItem) => str
 };
 
 const STATUS_LABELS: Record<MlProcessedOrderItemStatus, string> = {
+  pending: 'Pendiente',
   processed: 'Procesada',
   error: 'Error',
 };
+
+const STATUS_COLORS: Record<MlProcessedOrderItemStatus, string> = {
+  pending: 'warning',
+  processed: 'success',
+  error: 'danger',
+};
+
+/** Clave que agrupa las filas de un mismo order-item (un kit tiene varias filas, una por componente). */
+function orderItemKey(sale: MlProcessedOrderItem): string {
+  return `${sale.mlOrderId}|${sale.mlItemId}|${sale.mlVariationId ?? ''}`;
+}
 
 @Component({
   selector: 'app-sales',
@@ -59,6 +73,8 @@ const STATUS_LABELS: Record<MlProcessedOrderItemStatus, string> = {
     IonBadge,
     IonIcon,
     IonSpinner,
+    IonButton,
+    IonText,
   ],
   templateUrl: './sales.html',
   styleUrl: './sales.scss',
@@ -71,6 +87,18 @@ export class Sales implements OnInit {
   dateTo = signal('');
   status = signal<MlProcessedOrderItemStatus | ''>('');
   searchTerm = signal('');
+
+  confirmingIds = signal<Set<string>>(new Set());
+  confirmError = signal<string | null>(null);
+
+  pendingCount = computed(() => {
+    const keys = new Set(
+      this.sales()
+        .filter((sale) => sale.status === 'pending')
+        .map((sale) => orderItemKey(sale)),
+    );
+    return keys.size;
+  });
 
   columnSort = signal<{ column: SortColumn; direction: SortDirection } | null>(null);
   sortedSales = computed(() => {
@@ -129,8 +157,54 @@ export class Sales implements OnInit {
   }
 
   onStatusChange(value: string | null | undefined): void {
-    this.status.set(value === 'processed' || value === 'error' ? value : '');
+    this.status.set(
+      value === 'pending' || value === 'processed' || value === 'error' ? value : '',
+    );
     this.load();
+  }
+
+  async confirm(sale: MlProcessedOrderItem): Promise<void> {
+    if (this.confirmingIds().has(sale.id)) return;
+
+    this.confirmingIds.set(new Set(this.confirmingIds()).add(sale.id));
+    this.confirmError.set(null);
+    try {
+      await this.mlOrdersService.confirm(sale.id);
+      await this.load();
+    } catch (error) {
+      const message =
+        (error as { error?: { message?: string } })?.error?.message ??
+        'No se pudo confirmar la venta';
+      this.confirmError.set(Array.isArray(message) ? message.join(', ') : message);
+    } finally {
+      const next = new Set(this.confirmingIds());
+      next.delete(sale.id);
+      this.confirmingIds.set(next);
+    }
+  }
+
+  async confirmAllPending(): Promise<void> {
+    const seenKeys = new Set<string>();
+    const representatives = this.sales().filter((sale) => {
+      if (sale.status !== 'pending') return false;
+      const key = orderItemKey(sale);
+      if (seenKeys.has(key)) return false;
+      seenKeys.add(key);
+      return true;
+    });
+
+    this.confirmError.set(null);
+    for (const sale of representatives) {
+      try {
+        await this.mlOrdersService.confirm(sale.id);
+      } catch (error) {
+        const message =
+          (error as { error?: { message?: string } })?.error?.message ??
+          'No se pudo confirmar alguna de las ventas pendientes';
+        this.confirmError.set(Array.isArray(message) ? message.join(', ') : message);
+      }
+    }
+    await this.load();
   }
 
   toggleColumnSort(column: SortColumn): void {
@@ -152,5 +226,13 @@ export class Sales implements OnInit {
 
   statusLabel(status: MlProcessedOrderItemStatus): string {
     return STATUS_LABELS[status];
+  }
+
+  statusColor(status: MlProcessedOrderItemStatus): string {
+    return STATUS_COLORS[status];
+  }
+
+  confirmActionLabel(status: MlProcessedOrderItemStatus): string {
+    return status === 'error' ? 'Reintentar' : 'Confirmar';
   }
 }

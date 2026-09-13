@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Product } from '../products/entities/product.entity';
 import { CreateMovementDto } from './dto/create-movement.dto';
 import { InventoryMovement, MovementType } from './entities/inventory-movement.entity';
@@ -30,14 +30,20 @@ export class InventoryService {
     }
   }
 
-  async registerMovement(dto: CreateMovementDto): Promise<InventoryMovement> {
+  /**
+   * `manager` opcional: permite sumar este movimiento a una transacción ya abierta
+   * por el llamador (ej. MlOrdersService, para que el descuento de stock y el
+   * registro de idempotencia de la venta se confirmen o se reviertan juntos).
+   * Sin `manager`, abre su propia transacción como siempre.
+   */
+  async registerMovement(dto: CreateMovementDto, manager?: EntityManager): Promise<InventoryMovement> {
     if (dto.type === MovementType.ADJUSTMENT && !dto.reason?.trim()) {
       throw new BadRequestException('Un ajuste manual requiere un motivo');
     }
 
     const delta = this.resolveDelta(dto.type, dto.quantity);
 
-    return this.dataSource.transaction(async (manager) => {
+    const run = async (manager: EntityManager) => {
       const productRepo = manager.getRepository(Product);
       const product = await productRepo
         .createQueryBuilder('product')
@@ -63,7 +69,9 @@ export class InventoryService {
       });
 
       return manager.getRepository(InventoryMovement).save(movement);
-    });
+    };
+
+    return manager ? run(manager) : this.dataSource.transaction(run);
   }
 
   async findByProduct(productId: string): Promise<InventoryMovement[]> {

@@ -4,6 +4,15 @@
       <ion-menu-button></ion-menu-button>
     </ion-buttons>
     <ion-title>Ventas</ion-title>
+    <ion-buttons slot="end">
+      <ion-button
+        fill="clear"
+        [disabled]="pendingCount() === 0"
+        (click)="confirmAllPending()"
+      >
+        Confirmar pendientes visibles ({{ pendingCount() }})
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
   <ion-toolbar>
     <ion-searchbar
@@ -37,11 +46,18 @@
       (ionChange)="onStatusChange($event.detail.value)"
     >
       <ion-select-option [value]="null">Todos</ion-select-option>
+      <ion-select-option value="pending">Pendiente</ion-select-option>
       <ion-select-option value="processed">Procesada</ion-select-option>
       <ion-select-option value="error">Error</ion-select-option>
     </ion-select>
   </ion-toolbar>
 </ion-header>
+
+@if (confirmError()) {
+  <ion-text color="danger">
+    <p class="ion-padding-horizontal">{{ confirmError() }}</p>
+  </ion-text>
+}
 
 <ion-content class="ion-padding">
   @if (loading()) {
@@ -81,6 +97,7 @@
                 <ion-icon [name]="columnSortIcon('status')"></ion-icon>
               </button>
             </th>
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -91,17 +108,33 @@
               <td>{{ sale.mlOrderId }}</td>
               <td class="numeric">{{ sale.quantity }}</td>
               <td>
-                <ion-badge [color]="sale.status === 'processed' ? 'success' : 'danger'">
+                <ion-badge [color]="statusColor(sale.status)">
                   {{ statusLabel(sale.status) }}
                 </ion-badge>
                 @if (sale.errorMessage) {
                   <p class="error-text">{{ sale.errorMessage }}</p>
                 }
               </td>
+              <td>
+                @if (sale.status !== 'processed') {
+                  <ion-button
+                    size="small"
+                    fill="outline"
+                    [disabled]="confirmingIds().has(sale.id)"
+                    (click)="confirm(sale)"
+                  >
+                    @if (confirmingIds().has(sale.id)) {
+                      <ion-spinner name="dots"></ion-spinner>
+                    } @else {
+                      {{ confirmActionLabel(sale.status) }}
+                    }
+                  </ion-button>
+                }
+              </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="5">No hay ventas para los filtros seleccionados.</td>
+              <td colspan="6">No hay ventas para los filtros seleccionados.</td>
             </tr>
           }
         </tbody>

@@ -10,6 +10,7 @@ import {
 import { Product } from '../../products/entities/product.entity';
 
 export enum MlProcessedOrderItemStatus {
+  PENDING = 'pending',
   PROCESSED = 'processed',
   ERROR = 'error',
 }
@@ -17,6 +18,9 @@ export enum MlProcessedOrderItemStatus {
 /**
  * Registro de idempotencia: un item de una orden de Mercado Libre solo debe
  * descontar stock una vez, sin importar cuántas veces llegue la notificación.
+ * Además funciona como cola de revisión: llega en `pending` sin tocar stock,
+ * y recién pasa a `processed` cuando alguien lo confirma manualmente desde
+ * la pantalla de Ventas (ver `MlOrdersService.confirmOrderItem`).
  */
 @Entity('ml_processed_order_items')
 @Index(['mlOrderId', 'mlItemId', 'mlVariationId'])

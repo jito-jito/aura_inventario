@@ -34,6 +34,8 @@ export class MlWebhooksController {
       'process-order',
       { orderId },
       {
+        // BullMQ no permite ":" en un jobId personalizado (lo usa como separador interno de claves).
+        jobId: `ml-order-${orderId}`,
         attempts: 3,
         backoff: { type: 'exponential', delay: 5000 },
         removeOnComplete: true,

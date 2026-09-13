@@ -11,7 +11,11 @@ export class QueryProcessedOrdersDto {
   dateTo?: string;
 
   @IsOptional()
-  @IsIn([MlProcessedOrderItemStatus.PROCESSED, MlProcessedOrderItemStatus.ERROR])
+  @IsIn([
+    MlProcessedOrderItemStatus.PENDING,
+    MlProcessedOrderItemStatus.PROCESSED,
+    MlProcessedOrderItemStatus.ERROR,
+  ])
   status?: MlProcessedOrderItemStatus;
 
   @IsOptional()

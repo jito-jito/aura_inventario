@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { QueryProcessedOrdersDto } from './dto/query-processed-orders.dto';
 import { MlOrdersService } from './ml-orders.service';
@@ -11,5 +11,11 @@ export class MlOrdersController {
   @Get('processed')
   findProcessed(@Query() query: QueryProcessedOrdersDto) {
     return this.mlOrdersService.findProcessed(query);
+  }
+
+  @Post(':id/confirm')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  confirm(@Param('id') id: string) {
+    return this.mlOrdersService.confirmOrderItem(id);
   }
 }

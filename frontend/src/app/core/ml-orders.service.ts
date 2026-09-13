@@ -25,4 +25,8 @@ export class MlOrdersService {
       this.http.get<MlProcessedOrderItem[]>(`${this.baseUrl}/processed`, { params: query }),
     );
   }
+
+  async confirm(id: string): Promise<void> {
+    await firstValueFrom(this.http.post(`${this.baseUrl}/${id}/confirm`, {}));
+  }
 }

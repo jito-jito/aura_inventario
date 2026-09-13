@@ -1,4 +1,4 @@
-export type MlProcessedOrderItemStatus = 'processed' | 'error';
+export type MlProcessedOrderItemStatus = 'pending' | 'processed' | 'error';
 
 export interface MlProcessedOrderItem {
   id: string;

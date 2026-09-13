@@ -547,16 +547,63 @@ export class MlIntegrationUnlinkedPublications implements OnInit {
     return row.item.variations.length > 0 && row.selectedVariationIds.size === 0;
   }
 
+  rowNombreMissing(row: BulkRow): boolean {
+    return !row.nombre.trim();
+  }
+
+  rowMedidaMissing(row: BulkRow): boolean {
+    return !row.medida.trim();
+  }
+
+  rowFinalNameMissing(row: BulkRow): boolean {
+    return !row.finalName.trim();
+  }
+
+  rowFinalSkuMissing(row: BulkRow): boolean {
+    return !row.finalSku.trim();
+  }
+
+  rowCostMissing(row: BulkRow): boolean {
+    return !this.bulkUseSharedValues() && row.cost == null;
+  }
+
+  /** true si a esta fila le falta algún campo obligatorio (los marcados en rojo en el formulario). */
+  rowHasMissingFields(row: BulkRow): boolean {
+    return (
+      this.rowNombreMissing(row) ||
+      this.rowMedidaMissing(row) ||
+      this.rowFinalNameMissing(row) ||
+      this.rowFinalSkuMissing(row) ||
+      this.rowCostMissing(row) ||
+      this.rowVariationMissing(row)
+    );
+  }
+
+  bulkRowsWithMissingFieldsCount(): number {
+    return this.bulkRows().filter((row) => this.rowHasMissingFields(row)).length;
+  }
+
+  /** Razones legibles por las que el botón de carga masiva está bloqueado, para mostrar sin tener que buscar fila por fila. */
+  bulkBlockedReasons(): string[] {
+    const reasons: string[] = [];
+    if (this.bulkUseSharedValues() && this.bulkSharedCost() == null) {
+      reasons.push('Falta ingresar el costo compartido (arriba) para poder cargar los productos.');
+    }
+    const missingCount = this.bulkRowsWithMissingFieldsCount();
+    if (missingCount === 1) {
+      reasons.push('Hay 1 publicación con campos pendientes (marcados en rojo más abajo).');
+    } else if (missingCount > 1) {
+      reasons.push(
+        `Hay ${missingCount} publicaciones con campos pendientes (marcados en rojo más abajo).`,
+      );
+    }
+    return reasons;
+  }
+
   bulkCanSubmit(): boolean {
     if (this.bulkSubmitting() || this.bulkRows().length === 0) return false;
-    const rowsValid = this.bulkRows().every(
-      (row) => row.nombre.trim() && row.medida.trim() && row.finalName.trim() && row.finalSku.trim(),
-    );
-    if (!rowsValid) return false;
-    if (this.bulkRows().some((row) => this.rowVariationMissing(row))) return false;
-    return this.bulkUseSharedValues()
-      ? this.bulkSharedCost() != null
-      : this.bulkRows().every((row) => row.cost != null);
+    if (this.bulkRows().some((row) => this.rowHasMissingFields(row))) return false;
+    return this.bulkUseSharedValues() ? this.bulkSharedCost() != null : true;
   }
 
   bulkPendingCount(): number {

@@ -88,6 +88,10 @@ export class Dashboard implements OnInit {
   lowStockPreview = computed(() => this.lowStockProducts().slice(0, LOW_STOCK_PREVIEW_LIMIT));
   todaySales = signal<MlProcessedOrderItem[]>([]);
   errors = signal<IntegrationErrorItem[]>([]);
+  todayErrors = computed(() => {
+    const today = todayIsoDate();
+    return this.errors().filter((error) => error.occurredAt.startsWith(today));
+  });
 
   constructor(
     private readonly productsService: ProductsService,

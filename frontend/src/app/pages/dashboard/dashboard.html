@@ -65,7 +65,7 @@
         <ion-col size="12" size-md="4">
           <h2>Errores de integración</h2>
           <ion-list>
-            @for (error of errors(); track error.occurredAt + error.context) {
+            @for (error of todayErrors(); track error.occurredAt + error.context) {
               <ion-item>
                 <ion-label>
                   <h3>{{ errorTypeLabel(error.type) }}</h3>
@@ -76,10 +76,13 @@
               </ion-item>
             } @empty {
               <ion-item>
-                <ion-label>Sin errores registrados.</ion-label>
+                <ion-label>Sin errores registrados hoy.</ion-label>
               </ion-item>
             }
           </ion-list>
+          <ion-button expand="block" fill="outline" routerLink="/logs">
+            Ver detalle
+          </ion-button>
         </ion-col>
       </ion-row>
     </ion-grid>

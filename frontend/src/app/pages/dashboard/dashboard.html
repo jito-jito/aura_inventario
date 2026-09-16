@@ -47,8 +47,8 @@
                   <p>Orden ML {{ sale.mlOrderId }} · Cantidad: {{ sale.quantity }}</p>
                   <ion-note>{{ sale.processedAt | date: 'short' }}</ion-note>
                 </ion-label>
-                <ion-badge slot="end" [color]="sale.status === 'processed' ? 'success' : 'danger'">
-                  {{ sale.status === 'processed' ? 'Procesada' : 'Error' }}
+                <ion-badge slot="end" [color]="saleStatusColor(sale.status)">
+                  {{ saleStatusLabel(sale.status) }}
                 </ion-badge>
               </ion-item>
             } @empty {

@@ -23,10 +23,25 @@ import { ProductsService } from '../../core/products.service';
 import { MlOrdersService } from '../../core/ml-orders.service';
 import { MonitoringService } from '../../core/monitoring.service';
 import { Product } from '../../core/models/product.model';
-import { MlProcessedOrderItem } from '../../core/models/ml-processed-order-item.model';
+import {
+  MlProcessedOrderItem,
+  MlProcessedOrderItemStatus,
+} from '../../core/models/ml-processed-order-item.model';
 import { IntegrationErrorItem, IntegrationErrorType } from '../../core/models/integration-error.model';
 
 const LOW_STOCK_PREVIEW_LIMIT = 3;
+
+const SALE_STATUS_LABELS: Record<MlProcessedOrderItemStatus, string> = {
+  pending: 'Pendiente',
+  processed: 'Procesada',
+  error: 'Error',
+};
+
+const SALE_STATUS_COLORS: Record<MlProcessedOrderItemStatus, string> = {
+  pending: 'warning',
+  processed: 'success',
+  error: 'danger',
+};
 
 function todayIsoDate(): string {
   const now = new Date();
@@ -99,5 +114,13 @@ export class Dashboard implements OnInit {
 
   errorTypeLabel(type: IntegrationErrorType): string {
     return ERROR_TYPE_LABELS[type];
+  }
+
+  saleStatusLabel(status: MlProcessedOrderItemStatus): string {
+    return SALE_STATUS_LABELS[status];
+  }
+
+  saleStatusColor(status: MlProcessedOrderItemStatus): string {
+    return SALE_STATUS_COLORS[status];
   }
 }

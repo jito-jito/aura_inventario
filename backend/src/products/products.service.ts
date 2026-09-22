@@ -1,17 +1,25 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ILike, Repository } from 'typeorm';
+import { ILike, In, Repository } from 'typeorm';
 import { MovementType } from '../inventory/entities/inventory-movement.entity';
 import { InventoryService } from '../inventory/inventory.service';
+import {
+  MlProcessedOrderItem,
+  MlProcessedOrderItemStatus,
+} from '../ml-orders/entities/ml-processed-order-item.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { QueryProductsDto } from './dto/query-products.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entities/product.entity';
 
+export type ProductWithProjectedStock = Product & { projectedStock: number };
+
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectRepository(Product) private readonly productsRepository: Repository<Product>,
+    @InjectRepository(MlProcessedOrderItem)
+    private readonly processedItemsRepository: Repository<MlProcessedOrderItem>,
     private readonly inventoryService: InventoryService,
   ) {}
 
@@ -49,7 +57,7 @@ export class ProductsService {
     return product;
   }
 
-  async findAll(query: QueryProductsDto): Promise<Product[]> {
+  async findAll(query: QueryProductsDto): Promise<ProductWithProjectedStock[]> {
     const where = query.search
       ? [{ sku: ILike(`%${query.search}%`) }, { name: ILike(`%${query.search}%`) }]
       : {};
@@ -70,7 +78,30 @@ export class ProductsService {
       products = [...products].sort((a, b) => (a.stock - b.stock) * direction);
     }
 
-    return products;
+    const pendingByProduct = await this.getPendingQuantitiesByProduct(
+      products.map((product) => product.id),
+    );
+
+    return products.map((product) => ({
+      ...product,
+      projectedStock: product.stock - (pendingByProduct.get(product.id) ?? 0),
+    }));
+  }
+
+  private async getPendingQuantitiesByProduct(productIds: string[]): Promise<Map<string, number>> {
+    if (productIds.length === 0) {
+      return new Map();
+    }
+
+    const pendingItems = await this.processedItemsRepository.find({
+      where: { productId: In(productIds), status: MlProcessedOrderItemStatus.PENDING },
+      select: { productId: true, quantity: true },
+    });
+
+    return pendingItems.reduce((map, item) => {
+      map.set(item.productId, (map.get(item.productId) ?? 0) + item.quantity);
+      return map;
+    }, new Map<string, number>());
   }
 
   async findOne(id: string): Promise<Product> {

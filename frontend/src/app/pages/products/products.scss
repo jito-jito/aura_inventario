@@ -63,6 +63,23 @@ form {
     justify-content: flex-end;
   }
 
+  th.has-hint {
+    display: flex;
+    align-items: center;
+  }
+
+  th.has-hint .sort-button {
+    width: auto;
+    flex: 1;
+  }
+
+  .hint-icon {
+    margin-right: 12px;
+    font-size: 14px;
+    color: var(--ion-color-medium);
+    cursor: help;
+  }
+
   .sort-button:hover {
     color: var(--ion-color-dark);
   }

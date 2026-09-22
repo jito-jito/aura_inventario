@@ -103,6 +103,17 @@
               <ion-icon [name]="columnSortIcon('stock')"></ion-icon>
             </button>
           </th>
+          <th class="numeric has-hint">
+            <button class="sort-button" type="button" (click)="toggleColumnSort('stockProjected')">
+              Stock proyectado
+              <ion-icon [name]="columnSortIcon('stockProjected')"></ion-icon>
+            </button>
+            <ion-icon
+              name="information-circle-outline"
+              class="hint-icon"
+              title="Stock actual menos las ventas de Mercado Libre detectadas pero aún no confirmadas"
+            ></ion-icon>
+          </th>
           <th class="numeric">
             <button class="sort-button" type="button" (click)="toggleColumnSort('minStock')">
               Mínimo
@@ -141,6 +152,13 @@
                 <ion-badge color="medium">{{ product.stock }}</ion-badge>
               }
             </td>
+            <td class="numeric">
+              @if (isProjectedLowStock(product)) {
+                <ion-badge color="danger">{{ product.projectedStock }}</ion-badge>
+              } @else {
+                <ion-badge color="medium">{{ product.projectedStock }}</ion-badge>
+              }
+            </td>
             <td class="numeric">{{ product.minStock }}</td>
             @if (!selectionMode()) {
               <td class="actions-col">
@@ -158,7 +176,7 @@
           </tr>
         } @empty {
           <tr>
-            <td [attr.colspan]="selectionMode() ? 7 : 7">No hay productos todavía.</td>
+            <td [attr.colspan]="selectionMode() ? 8 : 8">No hay productos todavía.</td>
           </tr>
         }
       </tbody>

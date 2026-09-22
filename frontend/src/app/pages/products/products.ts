@@ -35,6 +35,7 @@ import {
   chevronExpandOutline,
   chevronUpOutline,
   createOutline,
+  informationCircleOutline,
   swapVerticalOutline,
   trashOutline,
 } from 'ionicons/icons';
@@ -49,7 +50,14 @@ const MOVEMENT_LABELS: Record<MovementType, string> = {
   adjustment: 'Ajuste',
 };
 
-type SortColumn = 'sku' | 'name' | 'description' | 'cost' | 'stock' | 'minStock';
+type SortColumn =
+  | 'sku'
+  | 'name'
+  | 'description'
+  | 'cost'
+  | 'stock'
+  | 'stockProjected'
+  | 'minStock';
 type SortDirection = 'asc' | 'desc';
 
 const COLUMN_COMPARATORS: Record<SortColumn, (product: Product) => string | number> = {
@@ -58,6 +66,7 @@ const COLUMN_COMPARATORS: Record<SortColumn, (product: Product) => string | numb
   description: (product) => (product.description ?? '').toLowerCase(),
   cost: (product) => Number(product.cost),
   stock: (product) => product.stock,
+  stockProjected: (product) => product.projectedStock,
   minStock: (product) => product.minStock,
 };
 
@@ -148,6 +157,7 @@ export class Products implements OnInit {
       chevronExpandOutline,
       chevronUpOutline,
       createOutline,
+      informationCircleOutline,
       swapVerticalOutline,
       trashOutline,
     });
@@ -244,6 +254,10 @@ export class Products implements OnInit {
 
   isLowStock(product: Product): boolean {
     return product.stock <= product.minStock;
+  }
+
+  isProjectedLowStock(product: Product): boolean {
+    return product.projectedStock <= product.minStock;
   }
 
   toggleColumnSort(column: SortColumn): void {

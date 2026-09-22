@@ -8,3 +8,16 @@
   gap: 8px;
   margin-top: 8px;
 }
+
+.rules-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 0.85rem;
+  padding: 0 16px 8px;
+
+  ion-icon {
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+}

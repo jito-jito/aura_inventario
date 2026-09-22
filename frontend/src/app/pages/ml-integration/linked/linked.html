@@ -15,6 +15,12 @@
   <ion-toolbar>
     @if (!selectionMode()) {
       <ion-buttons slot="end">
+        <ion-button fill="clear" [disabled]="checkingStock()" (click)="checkStock()">
+          @if (checkingStock()) {
+            <ion-spinner name="dots" slot="start"></ion-spinner>
+          }
+          Verificar stock
+        </ion-button>
         <ion-button fill="clear" (click)="toggleSelectionMode()">Selección múltiple</ion-button>
       </ion-buttons>
     } @else {
@@ -74,8 +80,44 @@
           ></ion-input>
         </ion-item>
       </ion-col>
+      <ion-col size="12">
+        <ion-item>
+          <ion-label>Consistencia de stock</ion-label>
+          <ion-select
+            [ngModel]="mismatchFilter()"
+            (ngModelChange)="onMismatchFilterChange($event)"
+            interface="popover"
+          >
+            <ion-select-option value="all">Todas</ion-select-option>
+            <ion-select-option value="ml_off_has_internal_stock">
+              ML apagado, hay stock interno
+            </ion-select-option>
+            <ion-select-option value="ml_on_no_internal_stock">
+              ML activo, sin stock interno
+            </ion-select-option>
+          </ion-select>
+        </ion-item>
+      </ion-col>
     </ion-row>
   </ion-grid>
+
+  <ion-text color="medium">
+    <p class="rules-note">
+      <ion-icon name="information-circle-outline"></ion-icon>
+      Se considera <strong>"ML apagado"</strong> cuando Mercado Libre reporta 0 unidades disponibles
+      para comprar en la publicación (o en la variación vinculada). El
+      <strong>stock interno</strong> considerado es el stock proyectado: el stock actual del/los
+      producto(s) del vínculo, descontando ventas de Mercado Libre ya realizadas pero todavía
+      pendientes de confirmar. La verificación es manual: los badges reflejan el resultado del
+      último click en "Verificar stock", no se actualizan solos.
+    </p>
+  </ion-text>
+
+  @if (stockCheckError()) {
+    <ion-text color="danger">
+      <p class="ion-padding-start">{{ stockCheckError() }}</p>
+    </ion-text>
+  }
 
   @if (loading()) {
     <ion-spinner name="dots"></ion-spinner>
@@ -124,6 +166,15 @@
               <ion-badge [color]="statusColor(listing.syncStatus)">
                 {{ statusLabel(listing.syncStatus) }}
               </ion-badge>
+              @if (stockCheckFor(listing); as check) {
+                @if (check.mismatch) {
+                  <ion-badge [color]="mismatchColor(check.mismatch)">
+                    {{ mismatchLabel(check.mismatch) }}
+                  </ion-badge>
+                } @else if (check.mlAvailableQuantity === null) {
+                  <ion-badge color="medium">No se pudo verificar</ion-badge>
+                }
+              }
               @if (!selectionMode()) {
                 <ion-button fill="clear" (click)="openEdit(listing)">
                   Editar
@@ -139,6 +190,15 @@
               <ion-badge [color]="statusColor(listing.syncStatus)">
                 {{ statusLabel(listing.syncStatus) }}
               </ion-badge>
+              @if (stockCheckFor(listing); as check) {
+                @if (check.mismatch) {
+                  <ion-badge [color]="mismatchColor(check.mismatch)">
+                    {{ mismatchLabel(check.mismatch) }}
+                  </ion-badge>
+                } @else if (check.mlAvailableQuantity === null) {
+                  <ion-badge color="medium">No se pudo verificar</ion-badge>
+                }
+              }
               <ion-button fill="clear" (click)="openEdit(listing)">
                 Editar
               </ion-button>

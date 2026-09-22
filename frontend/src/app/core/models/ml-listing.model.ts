@@ -38,6 +38,15 @@ export interface MlSearchItem {
   alreadyLinked: boolean;
 }
 
+export type MlListingStockMismatch = 'ml_off_has_internal_stock' | 'ml_on_no_internal_stock';
+
+export interface MlListingStockCheckResult {
+  listingId: string;
+  mlAvailableQuantity: number | null;
+  internalAvailableUnits: number;
+  mismatch: MlListingStockMismatch | null;
+}
+
 export interface CreateMlListingComponentPayload {
   productId: string;
   quantityPerUnit?: number;

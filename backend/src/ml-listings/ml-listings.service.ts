@@ -11,6 +11,10 @@ import { AxiosError } from 'axios';
 import { firstValueFrom } from 'rxjs';
 import { In, IsNull, Repository } from 'typeorm';
 import { MlAuthService } from '../mercadolibre/ml-auth.service';
+import {
+  MlProcessedOrderItem,
+  MlProcessedOrderItemStatus,
+} from '../ml-orders/entities/ml-processed-order-item.entity';
 import { QueryProductsDto } from '../products/dto/query-products.dto';
 import { Product } from '../products/entities/product.entity';
 import { CreateMlListingDto } from './dto/create-ml-listing.dto';
@@ -26,6 +30,7 @@ interface MlItemAttributeCombination {
 interface MlSearchVariation {
   id: number;
   attribute_combinations?: MlItemAttributeCombination[];
+  available_quantity?: number;
 }
 
 interface MlItem {
@@ -77,6 +82,17 @@ export interface MlSearchItem {
   alreadyLinked: boolean;
 }
 
+export type MlListingStockMismatch = 'ml_off_has_internal_stock' | 'ml_on_no_internal_stock';
+
+export interface MlListingStockCheckResult {
+  listingId: string;
+  /** null = no se pudo determinar (publicación cerrada/eliminada en ML) */
+  mlAvailableQuantity: number | null;
+  /** Unidades vendibles según inventario interno (stock proyectado, descontando ventas ML pendientes) */
+  internalAvailableUnits: number;
+  mismatch: MlListingStockMismatch | null;
+}
+
 /** Mercado Libre solo permite consultar hasta 20 ids por llamada al endpoint multiget de items. */
 const MULTIGET_CHUNK_SIZE = 20;
 /** Tamaño de página al recorrer /items/search (máximo permitido por Mercado Libre para este endpoint). */
@@ -114,6 +130,8 @@ export class MlListingsService {
     @InjectRepository(MlListingComponent)
     private readonly componentsRepository: Repository<MlListingComponent>,
     @InjectRepository(Product) private readonly productsRepository: Repository<Product>,
+    @InjectRepository(MlProcessedOrderItem)
+    private readonly processedItemsRepository: Repository<MlProcessedOrderItem>,
   ) {}
 
   private async fetchItem(mlItemId: string): Promise<MlItem> {
@@ -229,6 +247,82 @@ export class MlListingsService {
     return this.listingsRepository.find({
       relations: { components: { product: true } },
       order: { createdAt: 'DESC' },
+    });
+  }
+
+  private async getPendingQuantitiesByProduct(productIds: string[]): Promise<Map<string, number>> {
+    if (productIds.length === 0) {
+      return new Map();
+    }
+
+    const pendingItems = await this.processedItemsRepository.find({
+      where: { productId: In(productIds), status: MlProcessedOrderItemStatus.PENDING },
+      select: { productId: true, quantity: true },
+    });
+
+    return pendingItems.reduce((map, item) => {
+      map.set(item.productId, (map.get(item.productId) ?? 0) + item.quantity);
+      return map;
+    }, new Map<string, number>());
+  }
+
+  /**
+   * Compara, para cada publicación vinculada, el stock que Mercado Libre está usando
+   * para vender contra el stock proyectado del inventario interno. Es 100% on-demand:
+   * no persiste nada, cada llamada vuelve a consultar la API de Mercado Libre en vivo.
+   */
+  async checkStock(): Promise<MlListingStockCheckResult[]> {
+    const listings = await this.listingsRepository.find({
+      relations: { components: { product: true } },
+    });
+    if (listings.length === 0) {
+      return [];
+    }
+
+    const productIds = [
+      ...new Set(listings.flatMap((listing) => listing.components.map((c) => c.productId))),
+    ];
+    const pendingByProduct = await this.getPendingQuantitiesByProduct(productIds);
+
+    const mlItemIds = [...new Set(listings.map((listing) => listing.mlItemId))];
+    const accessToken = await this.mlAuthService.getValidAccessToken();
+    const items = await this.fetchItemsDetail(mlItemIds, accessToken);
+    const itemsByMlId = new Map(items.map((item) => [item.id, item]));
+
+    return listings.map((listing) => {
+      const internalAvailableUnits = Math.max(
+        0,
+        Math.min(
+          ...listing.components.map((c) =>
+            Math.floor((c.product.stock - (pendingByProduct.get(c.productId) ?? 0)) / c.quantityPerUnit),
+          ),
+        ),
+      );
+
+      const item = itemsByMlId.get(listing.mlItemId);
+      let mlAvailableQuantity: number | null = null;
+      if (item) {
+        if (listing.mlVariationId) {
+          const variation = item.variations?.find((v) => String(v.id) === listing.mlVariationId);
+          mlAvailableQuantity = variation?.available_quantity ?? null;
+        } else {
+          mlAvailableQuantity = item.available_quantity ?? null;
+        }
+      }
+
+      let mismatch: MlListingStockMismatch | null = null;
+      if (mlAvailableQuantity === 0 && internalAvailableUnits > 0) {
+        mismatch = 'ml_off_has_internal_stock';
+      } else if (mlAvailableQuantity != null && mlAvailableQuantity > 0 && internalAvailableUnits <= 0) {
+        mismatch = 'ml_on_no_internal_stock';
+      }
+
+      return {
+        listingId: listing.id,
+        mlAvailableQuantity,
+        internalAvailableUnits,
+        mismatch,
+      };
     });
   }
 

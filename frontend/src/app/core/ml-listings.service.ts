@@ -6,6 +6,7 @@ import {
   CreateMlListingComponentPayload,
   CreateMlListingPayload,
   MlListing,
+  MlListingStockCheckResult,
   MlSearchItem,
 } from './models/ml-listing.model';
 import { Product } from './models/product.model';
@@ -36,6 +37,10 @@ export class MlListingsService {
 
   searchMyListings(): Promise<MlSearchItem[]> {
     return firstValueFrom(this.http.get<MlSearchItem[]>(`${this.baseUrl}/search-ml`));
+  }
+
+  checkStock(): Promise<MlListingStockCheckResult[]> {
+    return firstValueFrom(this.http.get<MlListingStockCheckResult[]>(`${this.baseUrl}/stock-check`));
   }
 
   create(payload: CreateMlListingPayload): Promise<MlListing> {

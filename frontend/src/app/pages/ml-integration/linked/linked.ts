@@ -29,10 +29,21 @@ import {
   AlertController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { addOutline, trashOutline, checkmarkCircle, alertCircle } from 'ionicons/icons';
+import {
+  addOutline,
+  trashOutline,
+  checkmarkCircle,
+  alertCircle,
+  informationCircleOutline,
+} from 'ionicons/icons';
 import { MlListingsService } from '../../../core/ml-listings.service';
 import { ProductsService } from '../../../core/products.service';
-import { MlListing, MlListingSyncStatus } from '../../../core/models/ml-listing.model';
+import {
+  MlListing,
+  MlListingStockCheckResult,
+  MlListingStockMismatch,
+  MlListingSyncStatus,
+} from '../../../core/models/ml-listing.model';
 import { Product } from '../../../core/models/product.model';
 
 interface ComponentRow {
@@ -58,6 +69,16 @@ const STATUS_COLORS: Record<MlListingSyncStatus, string> = {
   pending: 'medium',
   synced: 'success',
   error: 'danger',
+};
+
+const MISMATCH_LABELS: Record<MlListingStockMismatch, string> = {
+  ml_off_has_internal_stock: 'ML apagado, hay stock interno',
+  ml_on_no_internal_stock: 'ML activo, sin stock interno',
+};
+
+const MISMATCH_COLORS: Record<MlListingStockMismatch, string> = {
+  ml_off_has_internal_stock: 'warning',
+  ml_on_no_internal_stock: 'danger',
 };
 
 @Component({
@@ -103,6 +124,11 @@ export class MlIntegrationLinked implements OnInit {
   priceMin = signal<number | null>(null);
   priceMax = signal<number | null>(null);
 
+  stockChecks = signal<Map<string, MlListingStockCheckResult>>(new Map());
+  checkingStock = signal(false);
+  stockCheckError = signal<string | null>(null);
+  mismatchFilter = signal<'all' | MlListingStockMismatch>('all');
+
   showEditForm = signal(false);
   editingListing = signal<MlListing | null>(null);
   editSaving = signal(false);
@@ -123,7 +149,7 @@ export class MlIntegrationLinked implements OnInit {
     private readonly productsService: ProductsService,
     private readonly alertController: AlertController,
   ) {
-    addIcons({ addOutline, trashOutline, checkmarkCircle, alertCircle });
+    addIcons({ addOutline, trashOutline, checkmarkCircle, alertCircle, informationCircleOutline });
   }
 
   async ngOnInit(): Promise<void> {
@@ -133,6 +159,8 @@ export class MlIntegrationLinked implements OnInit {
 
   async load(): Promise<void> {
     this.loading.set(true);
+    this.stockChecks.set(new Map());
+    this.stockCheckError.set(null);
     try {
       this.listings.set(await this.mlListingsService.findAll());
     } finally {
@@ -140,11 +168,44 @@ export class MlIntegrationLinked implements OnInit {
     }
   }
 
+  async checkStock(): Promise<void> {
+    this.checkingStock.set(true);
+    this.stockCheckError.set(null);
+    try {
+      const results = await this.mlListingsService.checkStock();
+      this.stockChecks.set(new Map(results.map((r) => [r.listingId, r])));
+    } catch (error) {
+      const message =
+        (error as { error?: { message?: string } })?.error?.message ??
+        'No se pudo verificar el stock contra Mercado Libre';
+      this.stockCheckError.set(Array.isArray(message) ? message.join(', ') : message);
+    } finally {
+      this.checkingStock.set(false);
+    }
+  }
+
+  stockCheckFor(listing: MlListing): MlListingStockCheckResult | undefined {
+    return this.stockChecks().get(listing.id);
+  }
+
+  mismatchLabel(mismatch: MlListingStockMismatch): string {
+    return MISMATCH_LABELS[mismatch];
+  }
+
+  mismatchColor(mismatch: MlListingStockMismatch): string {
+    return MISMATCH_COLORS[mismatch];
+  }
+
+  onMismatchFilterChange(value: string | null | undefined): void {
+    this.mismatchFilter.set((value as 'all' | MlListingStockMismatch | null) ?? 'all');
+  }
+
   filteredListings(): MlListing[] {
     const titleTerm = this.titleFilter().trim().toLowerCase();
     const idTerm = this.mlIdFilter().trim().toLowerCase();
     const min = this.priceMin();
     const max = this.priceMax();
+    const mismatchTerm = this.mismatchFilter();
 
     return this.listings().filter((listing) => {
       if (titleTerm && !(listing.title ?? listing.mlItemId).toLowerCase().includes(titleTerm)) {
@@ -153,6 +214,9 @@ export class MlIntegrationLinked implements OnInit {
       if (idTerm && !listing.mlItemId.toLowerCase().includes(idTerm)) return false;
       if (min != null && (listing.price == null || listing.price < min)) return false;
       if (max != null && (listing.price == null || listing.price > max)) return false;
+      if (mismatchTerm !== 'all' && this.stockCheckFor(listing)?.mismatch !== mismatchTerm) {
+        return false;
+      }
       return true;
     });
   }

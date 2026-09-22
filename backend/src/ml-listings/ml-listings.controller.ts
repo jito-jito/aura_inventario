@@ -30,6 +30,11 @@ export class MlListingsController {
     return this.mlListingsService.searchMyListings();
   }
 
+  @Get('stock-check')
+  checkStock() {
+    return this.mlListingsService.checkStock();
+  }
+
   @Patch(':id')
   updateComponents(@Param('id') id: string, @Body() dto: UpdateMlListingComponentsDto) {
     return this.mlListingsService.updateComponents(id, dto);

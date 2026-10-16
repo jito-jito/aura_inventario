@@ -2,7 +2,7 @@
 
 - **Fecha del análisis:** 2026-10-14
 - **Código analizado:** commit `aa4c357` (punta de `backend/main` y de `frontend/main`, que en esa fecha eran idénticas). `main` estaba en `665b670`, un commit por detrás.
-- **Alcance:** lectura del código del backend y del frontend, build, tests y lint. No se probó contra servicios reales (ver [Qué se verificó y qué no](#3-qué-se-verificó-y-qué-no)).
+- **Alcance:** lectura del código del backend y del frontend, build, tests y lint. No se probó contra servicios reales (ver la sección 3, "Qué se verificó y qué no").
 
 ## 1. Estado de las ramas
 

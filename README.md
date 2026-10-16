@@ -10,7 +10,7 @@ MVP de inventario para Mercado Libre. Ver [`PLAN.md`](./PLAN.md) para el alcance
 /docker-compose.yml → Postgres + Redis para desarrollo local
 /docker-compose.prod.yml → Stack completo (Postgres + Redis + backend + frontend) para producción
 /DEPLOY.md  → Guía de despliegue en producción
-/docs       → Documentación técnica y funcional (ver docs/README.md)
+/docs       → Documentación técnica y funcional en Markdown; se ve como sitio local con `cd docs && npm install && npm run dev` (ver docs/README.md)
 ```
 
 ## Requisitos

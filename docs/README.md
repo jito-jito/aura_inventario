@@ -29,15 +29,24 @@ El menú lateral se arma solo a partir de las carpetas y archivos: agregar un do
 | Carpeta | Qué va acá | Estado |
 |---|---|---|
 | `arquitectura/` | Visión general del sistema, módulos del backend, modelo de datos, decisiones de diseño (ADR). | Pendiente |
-| `flujos/` | Procesos de negocio de punta a punta (ej. venta en Mercado Libre → confirmación → descuento de stock, conexión OAuth, respaldos). | Pendiente |
+| `flujos/` | Procesos de negocio de punta a punta (ej. venta en Mercado Libre → confirmación → descuento de stock, conexión OAuth, respaldos). | 1 documento |
 | `frontend/` | Páginas, componentes, servicios y patrones de la app Ionic Angular. | Pendiente |
 | `backend/` | Módulos NestJS, endpoints, entidades, colas y tareas programadas. | Pendiente |
 | `infraestructura/` | Entornos (local, Railway), Docker, Postgres, Redis, variables de entorno, migraciones, respaldos. | Pendiente |
 | `revisiones/` | Análisis y auditorías del estado del proyecto en una fecha dada (bugs, deuda técnica, estado de ramas). | 1 documento |
+| `ideas/` | Mejoras y funcionalidades propuestas, con su prioridad y estado, para no perderlas antes de implementarlas. | 1 documento |
 
 Las carpetas marcadas como "Pendiente" todavía no existen: se crean cuando se escribe el primer documento de ese apartado, y aparecen solas en el menú lateral.
 
 ## Documentos
+
+### Flujos
+
+- [Descuento de stock por ventas de Mercado Libre](./flujos/descuento-stock-ventas-ml.md) — desde que llega la notificación de ML hasta que el usuario confirma la venta.
+
+### Ideas
+
+- [Mejoras propuestas](./ideas/mejoras-propuestas.md) — comparación con herramientas similares y mejoras priorizadas.
 
 ### Revisiones
 

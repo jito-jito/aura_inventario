@@ -13,6 +13,7 @@ const SECTION_TITLES: Record<string, string> = {
   backend: 'Backend',
   infraestructura: 'Infraestructura',
   revisiones: 'Revisiones',
+  ideas: 'Ideas',
 };
 
 /** Orden del sidebar; las carpetas que no figuran van al final, en orden alfabético. */
